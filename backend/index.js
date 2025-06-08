@@ -21,8 +21,6 @@ io.on('connection', (socket) => {
 
   socket.on('draw', (data) => {
     socket.broadcast.emit('draw', data);
-
-    console.log("data", data)
   });
 
   socket.on('disconnect', () => {

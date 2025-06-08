@@ -8,6 +8,7 @@ function Whiteboard() {
     const ctxRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [color, setColor] = useState("#000000");
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -18,13 +19,13 @@ function Whiteboard() {
 
         const ctx = canvas.getContext("2d");
         ctx.lineCap = "round";
-        ctx.strokeStyle = "black";
+        ctx.strokeStyle = color;
         ctx.lineWidth = 3;
 
         ctxRef.current = ctx;
 
-        socket.on("draw", ({ x0, y0, x1, y1 }) => {
-            drawLine(x0, y0, x1, y1, false);
+        socket.on("draw", ({ x0, y0, x1, y1, color: lineColor }) => {
+            drawLine(x0, y0, x1, y1, false, lineColor);
         });
 
         return () => socket.off("draw");
@@ -42,20 +43,21 @@ function Whiteboard() {
         if (!isDrawing) return;
 
         const { offsetX, offsetY } = nativeEvent;
-        drawLine(position.x, position.y, offsetX, offsetY, true);
+        drawLine(position.x, position.y, offsetX, offsetY, true, color);
         setPosition({ x: offsetX, y: offsetY });
     };
 
-    const drawLine = (x0, y0, x1, y1, emit) => {
+    const drawLine = (x0, y0, x1, y1, emit, lineColor = color) => {
         const ctx = ctxRef.current;
         ctx.beginPath();
         ctx.moveTo(x0, y0);
         ctx.lineTo(x1, y1);
+        ctx.strokeStyle = lineColor;
         ctx.stroke();
         ctx.closePath();
 
         if (!emit) return;
-        socket.emit("draw", { x0, y0, x1, y1 });
+        socket.emit("draw", { x0, y0, x1, y1, color: lineColor });
     };
 
     return (
@@ -66,13 +68,30 @@ function Whiteboard() {
                     textAlign: "center",
                     background: "linear-gradient(to right, #f472b6, #d8b4fe)", // pink-400 to purple-300
                     color: "#9866ce",
-                    fontSize: "1.5rem",
-                    fontWeight: "bold"
+                    fontSize: "2.5rem",
+                    fontWeight: "bold",
+                    fontFamily: "serif",
                 }}
             >
                 Collaborative Whiteboard
             </header>
 
+            <div style={{
+                display: "flex",
+                justifyContent: "center",
+                padding: "0.5rem",
+                background: "#f3f4f6"
+            }}>
+                <label htmlFor="color" style={{ marginRight: "0.5rem", fontSize: '2rem', fontFamily: 'serif' }}>
+                    Choose Color :
+                </label>
+                <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    style={{ width: "50px", height: "50px" }}
+                />
+            </div>
 
             <div style={{ flexGrow: 1, position: "relative" }}>
                 <canvas
