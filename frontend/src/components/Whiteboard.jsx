@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import BrushSizeSelector from "./BrushSizeSelector";
+import { clearCanvas } from "../utils/canvasUtils";
 
 const socket = io("http://localhost:5000");
 
@@ -12,12 +13,18 @@ function Whiteboard() {
     const [color, setColor] = useState("#000000");
     const [brushSize, setBrushSize] = useState(3);
 
+    const handleClearBoard = () => {
+        clearCanvas(canvasRef);
+        socket.emit('clear');
+    };
+
     useEffect(() => {
         const canvas = canvasRef.current;
         const parent = canvas.parentElement;
 
         canvas.width = parent.clientWidth;
         canvas.height = parent.clientHeight;
+        clearCanvas(canvasRef); // Initialize with cleared canvas
 
         const ctx = canvas.getContext("2d");
         ctx.lineCap = "round";
@@ -30,7 +37,14 @@ function Whiteboard() {
             drawLine(x0, y0, x1, y1, false, lineColor, size);
         });
 
-        return () => socket.off("draw");
+        socket.on("clear", () => {
+            clearCanvas(canvasRef);
+        });
+
+        return () => {
+            socket.off("draw");
+            socket.off("clear");
+        };
     }, []);
 
     const startDrawing = ({ nativeEvent }) => {
@@ -97,6 +111,21 @@ function Whiteboard() {
                     style={{ width: "50px", height: "50px" }}
                 />
                 <BrushSizeSelector brushSize={brushSize} setBrushSize={setBrushSize} />
+                <button
+                    onClick={handleClearBoard}
+                    style={{
+                        padding: '0.5rem 1rem',
+                        fontSize: '1.2rem',
+                        fontFamily: 'serif',
+                        background: '#9866ce',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                    }}
+                >
+                    Clear Board
+                </button>
             </div>
 
             <div style={{ flexGrow: 1, position: "relative" }}>
