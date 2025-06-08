@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import { io } from "socket.io-client";
+import BrushSizeSelector from "./BrushSizeSelector";
 
 const socket = io("http://localhost:5000");
 
@@ -9,6 +10,7 @@ function Whiteboard() {
     const [isDrawing, setIsDrawing] = useState(false);
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [color, setColor] = useState("#000000");
+    const [brushSize, setBrushSize] = useState(3);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -20,12 +22,12 @@ function Whiteboard() {
         const ctx = canvas.getContext("2d");
         ctx.lineCap = "round";
         ctx.strokeStyle = color;
-        ctx.lineWidth = 3;
+        ctx.lineWidth = brushSize;
 
         ctxRef.current = ctx;
 
-        socket.on("draw", ({ x0, y0, x1, y1, color: lineColor }) => {
-            drawLine(x0, y0, x1, y1, false, lineColor);
+        socket.on("draw", ({ x0, y0, x1, y1, color: lineColor, size }) => {
+            drawLine(x0, y0, x1, y1, false, lineColor, size);
         });
 
         return () => socket.off("draw");
@@ -47,17 +49,18 @@ function Whiteboard() {
         setPosition({ x: offsetX, y: offsetY });
     };
 
-    const drawLine = (x0, y0, x1, y1, emit, lineColor = color) => {
+    const drawLine = (x0, y0, x1, y1, emit, lineColor = color, size = brushSize) => {
         const ctx = ctxRef.current;
         ctx.beginPath();
         ctx.moveTo(x0, y0);
         ctx.lineTo(x1, y1);
         ctx.strokeStyle = lineColor;
+        ctx.lineWidth = size;
         ctx.stroke();
         ctx.closePath();
 
         if (!emit) return;
-        socket.emit("draw", { x0, y0, x1, y1, color: lineColor });
+        socket.emit("draw", { x0, y0, x1, y1, color: lineColor, size });
     };
 
     return (
@@ -66,7 +69,7 @@ function Whiteboard() {
                 style={{
                     padding: "1rem",
                     textAlign: "center",
-                    background: "linear-gradient(to right, #f472b6, #d8b4fe)", // pink-400 to purple-300
+                    background: "linear-gradient(to right, #f472b6, #d8b4fe)",
                     color: "#9866ce",
                     fontSize: "2.5rem",
                     fontWeight: "bold",
@@ -79,11 +82,13 @@ function Whiteboard() {
             <div style={{
                 display: "flex",
                 justifyContent: "center",
+                alignItems: "center",
+                gap: "2rem",
                 padding: "0.5rem",
                 background: "#f3f4f6"
             }}>
-                <label htmlFor="color" style={{ marginRight: "0.5rem", fontSize: '2rem', fontFamily: 'serif' }}>
-                    Choose Color :
+                <label htmlFor="color" style={{ fontSize: '2rem', fontFamily: 'serif' }}>
+                    Choose Color:
                 </label>
                 <input
                     type="color"
@@ -91,6 +96,7 @@ function Whiteboard() {
                     onChange={(e) => setColor(e.target.value)}
                     style={{ width: "50px", height: "50px" }}
                 />
+                <BrushSizeSelector brushSize={brushSize} setBrushSize={setBrushSize} />
             </div>
 
             <div style={{ flexGrow: 1, position: "relative" }}>
