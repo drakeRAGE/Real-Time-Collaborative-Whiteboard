@@ -4,6 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import BrushSizeSelector from "./BrushSizeSelector";
 import { clearCanvas, deleteRoom } from "../utils/canvasUtils";
 import UsersList from './UsersList';
+import LiveCursors from './LiveCursors';
 
 function Whiteboard() {
     const { roomId } = useParams();
@@ -223,6 +224,7 @@ function Whiteboard() {
                     onMouseMove={draw}
                     style={{ display: "block", width: "100%", height: "100%", cursor: "crosshair" }}
                 />
+                <LiveCursors socket={socket} roomId={roomId} />
                 <UsersList socket={socket} roomId={roomId} />
             </div>
 

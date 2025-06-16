@@ -52,34 +52,52 @@ io.on('connection', (socket) => {
     
     let room = await Room.findOne({ roomId });
     if (!room) {
-      room = new Room({ 
-        roomId,
-        users: [],
-        drawings: []
-      });
+        room = new Room({ 
+            roomId,
+            users: [],
+            drawings: []
+        });
     }
 
-    // Only add if not already in room
+    const username = `User ${room.users.length + 1}`;
+    
+    // Store username in connectedUsers
+    connectedUsers.set(socket.id, { 
+        id: socket.id, 
+        timestamp: Date.now(),
+        username 
+    });
+    
     if (!room.users.includes(socket.id)) {
-      room.users.push(socket.id);
-      await room.save();
+        room.users.push(socket.id);
+        await room.save();
     }
 
     socket.emit('initialData', room.drawings);
     
-    // Get only currently connected users in this room
     const connectedUsersInRoom = room.users.filter(userId => connectedUsers.has(userId));
     
-    // Notify all users in the room
     io.to(roomId).emit('userJoined', { 
-      userId: socket.id, 
-      users: connectedUsersInRoom,
-      username: `User ${connectedUsersInRoom.length}` // Add simple username
+        userId: socket.id, 
+        users: connectedUsersInRoom,
+        username
     });
     
     console.log(`User ${socket.id} joined room ${roomId}`);
-  });
+});
 
+  socket.on('cursorMove', ({ roomId, x, y }) => {
+      // Get the username from connectedUsers map instead
+      const userData = connectedUsers.get(socket.id);
+      const username = userData?.username || `User ${socket.id.slice(0, 4)}`;
+      
+      socket.to(roomId).emit('cursorMove', { 
+          userId: socket.id, 
+          x, 
+          y,
+          username
+      });
+  });
   socket.on('draw', async (data) => {
     const roomId = [...socket.rooms].find(room => room !== socket.id);
     if (roomId) {
