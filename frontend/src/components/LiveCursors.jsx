@@ -2,11 +2,18 @@ import { useEffect, useState } from 'react';
 
 function LiveCursors({ socket, roomId }) {
     const [cursors, setCursors] = useState({});
+    const [currentUserId, setCurrentUserId] = useState(null);
 
     useEffect(() => {
         if (!socket) return;
 
+        // Store current user's socket ID
+        setCurrentUserId(socket.id);
+
         const handleCursorMove = ({ userId, x, y, username }) => {
+            // Skip if this is the current user's cursor
+            if (userId === socket.id) return;
+            
             setCursors(prev => ({
                 ...prev,
                 [userId]: { x, y, username }
@@ -70,8 +77,10 @@ function LiveCursors({ socket, roomId }) {
             pointerEvents: 'none',
             zIndex: 100
         }}>
-            {Object.entries(cursors).map(([userId, { x, y, username }], index) => (
-                <div
+            {Object.entries(cursors)
+                .filter(([userId]) => userId !== currentUserId) // Filter out current user
+                .map(([userId, { x, y, username }]) => (
+                <div 
                     key={userId}
                     style={{
                         position: 'absolute',
