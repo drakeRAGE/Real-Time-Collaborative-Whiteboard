@@ -1,11 +1,13 @@
 import { useRef, useEffect, useState } from "react";
 import { io } from "socket.io-client";
+import { useParams } from "react-router-dom";
 import BrushSizeSelector from "./BrushSizeSelector";
 import { clearCanvas } from "../utils/canvasUtils";
 
-const socket = io("http://localhost:5000");
-
 function Whiteboard() {
+    const { roomId } = useParams();
+    const [socket, setSocket] = useState(null);
+    const [connectionError, setConnectionError] = useState(null);
     const canvasRef = useRef(null);
     const ctxRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
@@ -14,38 +16,74 @@ function Whiteboard() {
     const [brushSize, setBrushSize] = useState(3);
 
     const handleClearBoard = () => {
+        if (!socket) return;
         clearCanvas(canvasRef);
         socket.emit('clear');
     };
+    useEffect(() => {
+        const newSocket = io("http://localhost:5000", {
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            transports: ['websocket', 'polling']
+        });
+
+        newSocket.on("connect_error", (err) => {
+            console.error("Connection error:", err);
+            setConnectionError("Failed to connect to server");
+        });
+
+        newSocket.on("connect", () => {
+            setConnectionError(null);
+            console.log("Connected to server");
+        });
+
+        newSocket.on("initialData", (drawings) => {
+            const ctx = ctxRef.current;
+            if (!ctx) return;
+
+            // Clear canvas first
+            clearCanvas(canvasRef);
+
+            // Redraw all existing drawings
+            drawings.forEach(({ x0, y0, x1, y1, color: lineColor, size }) => {
+                drawLine(x0, y0, x1, y1, false, lineColor, size);
+            });
+        });
+
+        setSocket(newSocket);
+
+        return () => {
+            newSocket.disconnect();
+        };
+    }, []);
 
     useEffect(() => {
+        if (!socket || !roomId) return;
+
+        socket.emit('joinRoom', roomId);
+
         const canvas = canvasRef.current;
         const parent = canvas.parentElement;
 
         canvas.width = parent.clientWidth;
         canvas.height = parent.clientHeight;
-        clearCanvas(canvasRef); // Initialize with cleared canvas
+        clearCanvas(canvasRef);
 
         const ctx = canvas.getContext("2d");
         ctx.lineCap = "round";
         ctx.strokeStyle = color;
         ctx.lineWidth = brushSize;
-
         ctxRef.current = ctx;
 
         socket.on("draw", ({ x0, y0, x1, y1, color: lineColor, size }) => {
             drawLine(x0, y0, x1, y1, false, lineColor, size);
         });
 
-        socket.on("clear", () => {
-            clearCanvas(canvasRef);
-        });
-
         return () => {
             socket.off("draw");
-            socket.off("clear");
         };
-    }, []);
+    }, [socket, roomId]);
 
     const startDrawing = ({ nativeEvent }) => {
         const { offsetX, offsetY } = nativeEvent;
@@ -65,6 +103,8 @@ function Whiteboard() {
 
     const drawLine = (x0, y0, x1, y1, emit, lineColor = color, size = brushSize) => {
         const ctx = ctxRef.current;
+        if (!ctx) return; // Add null check
+
         ctx.beginPath();
         ctx.moveTo(x0, y0);
         ctx.lineTo(x1, y1);
@@ -73,7 +113,7 @@ function Whiteboard() {
         ctx.stroke();
         ctx.closePath();
 
-        if (!emit) return;
+        if (!emit || !socket) return; // Also check socket
         socket.emit("draw", { x0, y0, x1, y1, color: lineColor, size });
     };
 
