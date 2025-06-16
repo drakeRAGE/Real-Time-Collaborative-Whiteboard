@@ -3,6 +3,7 @@ import { io } from "socket.io-client";
 import { useParams } from "react-router-dom";
 import BrushSizeSelector from "./BrushSizeSelector";
 import { clearCanvas } from "../utils/canvasUtils";
+import UsersList from './UsersList';
 
 function Whiteboard() {
     const { roomId } = useParams();
@@ -80,8 +81,14 @@ function Whiteboard() {
             drawLine(x0, y0, x1, y1, false, lineColor, size);
         });
 
+        // Add clear event listener
+        socket.on("clear", () => {
+            clearCanvas(canvasRef);
+        });
+
         return () => {
             socket.off("draw");
+            socket.off("clear");
         };
     }, [socket, roomId]);
 
@@ -177,6 +184,7 @@ function Whiteboard() {
                     onMouseMove={draw}
                     style={{ display: "block", width: "100%", height: "100%", cursor: "crosshair" }}
                 />
+                <UsersList socket={socket} roomId={roomId} />
             </div>
         </div>
     );

@@ -44,12 +44,12 @@ const roomSchema = new mongoose.Schema({
 const Room = mongoose.model('Room', roomSchema);
 
 io.on('connection', (socket) => {
-  // console.log('User connected:', socket.id);
+  // Add user to connected users map
+  connectedUsers.set(socket.id, { id: socket.id, timestamp: Date.now() });
 
   socket.on('joinRoom', async (roomId) => {
     socket.join(roomId);
     
-    // Find or create room
     let room = await Room.findOne({ roomId });
     if (!room) {
       room = new Room({ 
@@ -59,14 +59,23 @@ io.on('connection', (socket) => {
       });
     }
 
-    // Add user if not already in room
+    // Only add if not already in room
     if (!room.users.includes(socket.id)) {
       room.users.push(socket.id);
       await room.save();
     }
 
-    // Send existing drawings to new user
     socket.emit('initialData', room.drawings);
+    
+    // Get only currently connected users in this room
+    const connectedUsersInRoom = room.users.filter(userId => connectedUsers.has(userId));
+    
+    // Notify all users in the room
+    io.to(roomId).emit('userJoined', { 
+      userId: socket.id, 
+      users: connectedUsersInRoom,
+      username: `User ${connectedUsersInRoom.length}` // Add simple username
+    });
     
     console.log(`User ${socket.id} joined room ${roomId}`);
   });
@@ -91,22 +100,34 @@ io.on('connection', (socket) => {
             { roomId },
             { $set: { drawings: [] } }
         );
-        socket.to(roomId).emit('clear');
+        // Emit to all clients in the room including the sender
+        io.to(roomId).emit('clear');
     }
 });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log('User disconnected:', socket.id);
-    rooms.forEach((users, roomId) => {
-      if (users.has(socket.id)) {
-        users.delete(socket.id);
-        if (users.size === 0) {
-          rooms.delete(roomId);
-        }
-      }
-    });
+    connectedUsers.delete(socket.id);
+    
+    const rooms = await Room.find({ users: socket.id });
+    for (const room of rooms) {
+      room.users = room.users.filter(userId => userId !== socket.id);
+      await room.save();
+      
+      // Get remaining connected users
+      const remainingUsers = room.users.filter(userId => connectedUsers.has(userId));
+      
+      io.to(room.roomId).emit('userLeft', { 
+        userId: socket.id, 
+        users: remainingUsers,
+        username: `User ${remainingUsers.length + 1}` // Add username for toast
+      });
+    }
   });
 });
+
+// Add this at the top with other declarations
+const connectedUsers = new Map();
 
 const PORT = 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
