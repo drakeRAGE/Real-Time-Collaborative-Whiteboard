@@ -1,8 +1,8 @@
 import { useRef, useEffect, useState } from "react";
 import { io } from "socket.io-client";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import BrushSizeSelector from "./BrushSizeSelector";
-import { clearCanvas } from "../utils/canvasUtils";
+import { clearCanvas, deleteRoom } from "../utils/canvasUtils";
 import UsersList from './UsersList';
 
 function Whiteboard() {
@@ -124,6 +124,29 @@ function Whiteboard() {
         socket.emit("draw", { x0, y0, x1, y1, color: lineColor, size });
     };
 
+    const navigate = useNavigate();
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+    const handleDeleteRoom = async () => {
+        const success = await deleteRoom(socket, roomId);
+        if (success) {
+            navigate('/'); // Redirect to home after deletion
+        }
+    };
+
+    // Add this useEffect to handle room deletion from other clients
+    useEffect(() => {
+        if (!socket) return;
+
+        socket.on('roomDeleted', () => {
+            navigate('/');
+        });
+
+        return () => {
+            socket.off('roomDeleted');
+        };
+    }, [socket, navigate]);
+
     return (
         <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
             <header
@@ -173,6 +196,22 @@ function Whiteboard() {
                 >
                     Clear Board
                 </button>
+
+                <button
+                    onClick={() => setShowDeleteModal(true)}
+                    style={{
+                        padding: '0.5rem 1rem',
+                        fontSize: '1.2rem',
+                        fontFamily: 'serif',
+                        background: '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                    }}
+                >
+                    Delete Room
+                </button>
             </div>
 
             <div style={{ flexGrow: 1, position: "relative" }}>
@@ -186,6 +225,59 @@ function Whiteboard() {
                 />
                 <UsersList socket={socket} roomId={roomId} />
             </div>
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 1000
+                }}>
+                    <div style={{
+                        backgroundColor: 'white',
+                        padding: '2rem',
+                        borderRadius: '8px',
+                        maxWidth: '400px'
+                    }}>
+                        <h2 style={{ marginBottom: '1rem' }}>Delete Room</h2>
+                        <p>Are you sure you want to delete this room? This action cannot be undone.</p>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+                            <button
+                                onClick={() => setShowDeleteModal(false)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    background: '#e5e7eb',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDeleteRoom}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

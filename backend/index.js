@@ -130,4 +130,17 @@ io.on('connection', (socket) => {
 const connectedUsers = new Map();
 
 const PORT = 5000;
+// Add this route before server.listen
+app.delete('/api/rooms/:roomId', async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        await Room.deleteOne({ roomId });
+        io.to(roomId).emit('roomDeleted');
+        res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('Error deleting room:', error);
+        res.status(500).json({ success: false });
+    }
+});
+
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
