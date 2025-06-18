@@ -5,6 +5,7 @@ import BrushSizeSelector from "./BrushSizeSelector";
 import { clearCanvas, deleteRoom } from "../utils/canvasUtils";
 import UsersList from './UsersList';
 import LiveCursors from './LiveCursors';
+import Modal from "../UI/Modal";
 
 function Whiteboard() {
     const { roomId } = useParams();
@@ -16,6 +17,7 @@ function Whiteboard() {
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [color, setColor] = useState("#000000");
     const [brushSize, setBrushSize] = useState(3);
+    const [showClearModal, setShowClearModal] = useState(false);
 
     const handleClearBoard = () => {
         if (!socket) return;
@@ -183,7 +185,7 @@ function Whiteboard() {
                 />
                 <BrushSizeSelector brushSize={brushSize} setBrushSize={setBrushSize} />
                 <button
-                    onClick={handleClearBoard}
+                    onClick={() => setShowClearModal(true)}
                     style={{
                         padding: '0.5rem 1rem',
                         fontSize: '1.2rem',
@@ -228,58 +230,8 @@ function Whiteboard() {
                 <UsersList socket={socket} roomId={roomId} />
             </div>
 
-            {/* Delete Confirmation Modal */}
-            {showDeleteModal && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: 'rgba(0,0,0,0.5)',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    zIndex: 1000
-                }}>
-                    <div style={{
-                        backgroundColor: 'white',
-                        padding: '2rem',
-                        borderRadius: '8px',
-                        maxWidth: '400px'
-                    }}>
-                        <h2 style={{ marginBottom: '1rem' }}>Delete Room</h2>
-                        <p>Are you sure you want to delete this room? This action cannot be undone.</p>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
-                            <button
-                                onClick={() => setShowDeleteModal(false)}
-                                style={{
-                                    padding: '0.5rem 1rem',
-                                    background: '#e5e7eb',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleDeleteRoom}
-                                style={{
-                                    padding: '0.5rem 1rem',
-                                    background: '#ef4444',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {showDeleteModal && <Modal handleClick={handleDeleteRoom} setShowModal={setShowDeleteModal} name={"Delete"} message={"Are you sure you want to delete this room? This action cannot be undone."} />}
+            {showClearModal && <Modal handleClick={handleClearBoard} setShowModal={setShowClearModal} name={"Clear"} message={"Are you sure you want to clear the canvas? This action cannot be undo."} />}
         </div>
     );
 }
