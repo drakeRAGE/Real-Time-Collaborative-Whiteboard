@@ -8,6 +8,8 @@ import LiveCursors from './LiveCursors';
 import Modal from "../UI/Modal";
 import CopyUrl from "../UI/CopyUrl";
 import ShapeSelector from './ShapeSelector';
+import { MdDelete } from "react-icons/md";
+import { GrClear } from "react-icons/gr";
 
 function Whiteboard() {
     const { roomId } = useParams();
@@ -18,7 +20,7 @@ function Whiteboard() {
     const [isDrawing, setIsDrawing] = useState(false);
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [color, setColor] = useState("#000000");
-    const [brushSize, setBrushSize] = useState(3);
+    const [brushSize, setBrushSize] = useState(4);
     const [showClearModal, setShowClearModal] = useState(false);
     const [selectedShape, setSelectedShape] = useState(null);
     const [startPos, setStartPos] = useState(null);
@@ -295,41 +297,31 @@ function Whiteboard() {
                 </div>
                 <BrushSizeSelector brushSize={brushSize} setBrushSize={setBrushSize} />
 
-                <button
+                <GrClear
                     onClick={() => setShowClearModal(true)}
                     style={{
-                        padding: '0.5rem 1rem',
-                        fontSize: '1rem',
-                        fontFamily: "'Inter', sans-serif",
-                        background: '#4f46e5',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
+                        fontSize: '1.75rem',
                         cursor: 'pointer',
                         transition: 'all 0.2s',
                         '&:hover': {
-                            background: '#4338ca'
+                            background: '#e2e8f0'
                         }
                     }}
-                >
-                    Clear Board
-                </button>
-
-                <button
+                    title="Clear Board"
+                />
+                <MdDelete
                     onClick={() => setShowDeleteModal(true)}
                     style={{
-                        padding: '0.5rem 1rem',
-                        fontSize: '1.2rem',
-                        fontFamily: 'serif',
-                        background: '#ef4444',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
+                        fontSize: '2rem',
+                        cursor: 'pointer',
+                        color: '#ef4444',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                            background: '#fee2e2'
+                        }
                     }}
-                >
-                    Delete Room
-                </button>
+                    title="Delete Room"
+                />
             </div>
 
             <div style={{ flexGrow: 1, position: "relative" }}>

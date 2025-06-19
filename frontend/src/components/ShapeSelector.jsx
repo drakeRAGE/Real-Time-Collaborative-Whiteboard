@@ -1,14 +1,16 @@
 import React from 'react';
 import {
-    FaSquare, FaCircle, FaPencilAlt, FaArrowUp, FaArrowDown,
-    FaArrowLeft, FaArrowRight, FaStar, FaSquareFull,
+    FaCircle, FaPencilAlt, FaArrowUp, FaArrowDown,
+    FaArrowLeft, FaArrowRight, FaStar,
 } from 'react-icons/fa';
 import { BsTriangleFill, BsFillPentagonFill, BsHexagonFill } from "react-icons/bs";
+import { BiSolidRectangle } from "react-icons/bi";
+import { GoSquareFill } from "react-icons/go";
 
 const shapeOptions = [
     { label: 'pencil', shape: null, icon: <FaPencilAlt size={24} /> },
-    { label: 'square', shape: 'square', icon: <FaSquareFull size={24} /> },
-    { label: 'rectangle', shape: 'rectangle', icon: <FaSquare size={24} /> },
+    { label: 'square', shape: 'square', icon: <GoSquareFill size={24} /> },
+    { label: 'rectangle', shape: 'rectangle', icon: <BiSolidRectangle size={24} /> },
     { label: 'circle', shape: 'circle', icon: <FaCircle size={24} /> },
     { label: 'triangle', shape: 'triangle', icon: <BsTriangleFill size={24} /> },
     { label: 'star', shape: 'star', icon: <FaStar size={24} /> },
