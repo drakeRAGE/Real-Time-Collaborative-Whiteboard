@@ -37,7 +37,8 @@ const roomSchema = new mongoose.Schema({
     x1: Number,
     y1: Number,
     color: String,
-    size: Number
+    size: Number,
+    shape: String // Add shape type
   }]
 });
 
@@ -109,6 +110,28 @@ io.on('connection', (socket) => {
       socket.to(roomId).emit('draw', data);
     }
   });
+
+  socket.on('drawShape', async (data) => {
+    const roomId = [...socket.rooms].find(room => room !== socket.id);
+    if (roomId) {
+        // Ensure shape data is included when saving to database
+        await Room.updateOne(
+            { roomId },
+            { $push: { 
+                drawings: {
+                    x0: data.x0,
+                    y0: data.y0,
+                    x1: data.x1,
+                    y1: data.y1,
+                    color: data.color,
+                    size: data.size,
+                    shape: data.shape // Make sure shape is included
+                }
+            } }
+        );
+        socket.to(roomId).emit('drawShape', data);
+    }
+});
 
   socket.on('clear', async () => {
     const roomId = [...socket.rooms].find(room => room !== socket.id);

@@ -7,6 +7,7 @@ import UsersList from './UsersList';
 import LiveCursors from './LiveCursors';
 import Modal from "../UI/Modal";
 import CopyUrl from "../UI/CopyUrl";
+import ShapeSelector from './ShapeSelector';
 
 function Whiteboard() {
     const { roomId } = useParams();
@@ -19,6 +20,8 @@ function Whiteboard() {
     const [color, setColor] = useState("#000000");
     const [brushSize, setBrushSize] = useState(3);
     const [showClearModal, setShowClearModal] = useState(false);
+    const [selectedShape, setSelectedShape] = useState(null);
+    const [startPos, setStartPos] = useState(null);
 
     const handleClearBoard = () => {
         if (!socket) return;
@@ -51,8 +54,28 @@ function Whiteboard() {
             clearCanvas(canvasRef);
 
             // Redraw all existing drawings
-            drawings.forEach(({ x0, y0, x1, y1, color: lineColor, size }) => {
-                drawLine(x0, y0, x1, y1, false, lineColor, size);
+            drawings.forEach(({ x0, y0, x1, y1, color: lineColor, size, shape }) => {
+                ctx.beginPath();
+
+                if (shape) {
+                    if (shape === 'rectangle') {
+                        ctx.rect(x0, y0, x1 - x0, y1 - y0);
+                    } else if (shape === 'circle') {
+                        const centerX = (x0 + x1) / 2;
+                        const centerY = (y0 + y1) / 2;
+                        const radiusX = Math.abs(x1 - x0) / 2;
+                        const radiusY = Math.abs(y1 - y0) / 2;
+                        ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+                    }
+                } else {
+                    // Handle regular line drawings
+                    ctx.moveTo(x0, y0);
+                    ctx.lineTo(x1, y1);
+                }
+
+                ctx.strokeStyle = lineColor;
+                ctx.lineWidth = size;
+                ctx.stroke();
             });
         });
 
@@ -96,16 +119,32 @@ function Whiteboard() {
         };
     }, [socket, roomId]);
 
+    // Modify startDrawing to handle shapes
     const startDrawing = ({ nativeEvent }) => {
         const { offsetX, offsetY } = nativeEvent;
         setPosition({ x: offsetX, y: offsetY });
         setIsDrawing(true);
+        if (selectedShape) {
+            setStartPos({ x: offsetX, y: offsetY });
+        }
     };
 
-    const endDrawing = () => setIsDrawing(false);
+    const endDrawing = ({ nativeEvent }) => {
+        if (!isDrawing) return;
+
+        const { offsetX, offsetY } = nativeEvent;
+        if (selectedShape) {
+            drawShape({ x: offsetX, y: offsetY });
+            setStartPos(null);
+        } else {
+            drawLine(position.x, position.y, offsetX, offsetY, true, color);
+        }
+
+        setIsDrawing(false);
+    };
 
     const draw = ({ nativeEvent }) => {
-        if (!isDrawing) return;
+        if (!isDrawing || selectedShape) return; // Only draw if no shape is selected
 
         const { offsetX, offsetY } = nativeEvent;
         drawLine(position.x, position.y, offsetX, offsetY, true, color);
@@ -146,22 +185,87 @@ function Whiteboard() {
             navigate('/');
         });
 
+        socket.on('drawShape', (data) => {
+            const ctx = ctxRef.current;
+            if (!ctx) return;
+
+            ctx.beginPath();
+
+            if (data.shape === 'rectangle') {
+                ctx.rect(data.x0, data.y0, data.x1 - data.x0, data.y1 - data.y0);
+            } else if (data.shape === 'circle') {
+                // Calculate center point and radii
+                const centerX = (data.x0 + data.x1) / 2;
+                const centerY = (data.y0 + data.y1) / 2;
+                const radiusX = Math.abs(data.x1 - data.x0) / 2;
+                const radiusY = Math.abs(data.y1 - data.y0) / 2;
+
+                // Draw ellipse/oval
+                ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+            }
+
+            ctx.strokeStyle = data.color;
+            ctx.lineWidth = data.size;
+            ctx.stroke();
+        });
+
         return () => {
             socket.off('roomDeleted');
+            socket.off('drawShape');
         };
     }, [socket, navigate]);
+
+
+    const drawShape = (endPos) => {
+        if (!selectedShape || !startPos) return;
+
+        const ctx = ctxRef.current;
+        if (!ctx) return;
+
+        ctx.beginPath();
+
+        if (selectedShape === 'rectangle') {
+            ctx.rect(startPos.x, startPos.y, endPos.x - startPos.x, endPos.y - startPos.y);
+        } else if (selectedShape === 'circle') {
+            // Calculate center point and radii
+            const centerX = (startPos.x + endPos.x) / 2;
+            const centerY = (startPos.y + endPos.y) / 2;
+            const radiusX = Math.abs(endPos.x - startPos.x) / 2;
+            const radiusY = Math.abs(endPos.y - startPos.y) / 2;
+
+            // Draw ellipse/oval
+            ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+        }
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = brushSize;
+        ctx.stroke();
+
+        if (socket) {
+            socket.emit('drawShape', {
+                x0: startPos.x,
+                y0: startPos.y,
+                x1: endPos.x,
+                y1: endPos.y,
+                color,
+                size: brushSize,
+                shape: selectedShape
+            });
+        }
+    };
 
     return (
         <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
             <header
                 style={{
-                    padding: "1rem",
+                    padding: "1.5rem",
                     textAlign: "center",
-                    background: "linear-gradient(to right, #f472b6, #d8b4fe)",
-                    color: "#9866ce",
-                    fontSize: "2.5rem",
-                    fontWeight: "bold",
-                    fontFamily: "serif",
+                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    color: "white",
+                    fontSize: "2rem",
+                    fontWeight: "600",
+                    fontFamily: "'Inter', sans-serif",
+                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
                 }}
             >
                 Collaborative Whiteboard
@@ -171,31 +275,50 @@ function Whiteboard() {
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-                gap: "2rem",
-                padding: "0.5rem",
-                background: "#f3f4f6"
+                gap: "1.5rem",
+                padding: "1rem",
+                background: "white",
+                boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                marginBottom: "1rem"
             }}>
-                <label htmlFor="color" style={{ fontSize: '2rem', fontFamily: 'serif' }}>
-                    Choose Color:
-                </label>
-                <input
-                    type="color"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    style={{ width: "50px", height: "50px" }}
-                />
+                <ShapeSelector selectedShape={selectedShape} setSelectedShape={setSelectedShape} />
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <label htmlFor="color" style={{
+                        fontSize: '1rem',
+                        fontFamily: "'Inter', sans-serif",
+                        color: "#4b5563"
+                    }}>
+                        Color:
+                    </label>
+                    <input
+                        type="color"
+                        value={color}
+                        onChange={(e) => setColor(e.target.value)}
+                        style={{
+                            width: "40px",
+                            height: "40px",
+                            border: "1px solid #e5e7eb",
+                            borderRadius: "4px"
+                        }}
+                    />
+                </div>
                 <BrushSizeSelector brushSize={brushSize} setBrushSize={setBrushSize} />
+
                 <button
                     onClick={() => setShowClearModal(true)}
                     style={{
                         padding: '0.5rem 1rem',
-                        fontSize: '1.2rem',
-                        fontFamily: 'serif',
-                        background: '#9866ce',
+                        fontSize: '1rem',
+                        fontFamily: "'Inter', sans-serif",
+                        background: '#4f46e5',
                         color: 'white',
                         border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                            background: '#4338ca'
+                        }
                     }}
                 >
                     Clear Board
