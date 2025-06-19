@@ -283,22 +283,13 @@ function Whiteboard() {
             }}>
                 <ShapeSelector selectedShape={selectedShape} setSelectedShape={setSelectedShape} />
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <label htmlFor="color" style={{
-                        fontSize: '1rem',
-                        fontFamily: "'Inter', sans-serif",
-                        color: "#4b5563"
-                    }}>
-                        Color:
-                    </label>
                     <input
                         type="color"
                         value={color}
                         onChange={(e) => setColor(e.target.value)}
                         style={{
-                            width: "40px",
-                            height: "40px",
-                            border: "1px solid #e5e7eb",
-                            borderRadius: "4px"
+                            width: "52px",
+                            height: "52px",
                         }}
                     />
                 </div>

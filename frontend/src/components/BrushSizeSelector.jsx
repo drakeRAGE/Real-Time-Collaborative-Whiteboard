@@ -1,30 +1,39 @@
 import React from 'react';
-import Slider from '@mui/material/Slider';
-import { styled } from '@mui/material/styles';
 
-const CustomSlider = styled(Slider)({
-    width: 150,
-    color: '#9866ce',
-    '& .MuiSlider-thumb': {
-        height: 24,
-        width: 24,
-        backgroundColor: '#fff',
-        border: '2px solid currentColor',
-    },
-});
+const sizes = [4, 8, 12, 16, 20, 24, 28, 32]; // You can adjust or add more sizes
 
 function BrushSizeSelector({ brushSize, setBrushSize }) {
     return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <label style={{ fontSize: '2rem', fontFamily: 'serif' }}>Brush Size:</label>
-            <CustomSlider
-                value={brushSize}
-                onChange={(e, newValue) => setBrushSize(newValue)}
-                min={1}
-                max={50}
-                aria-labelledby="brush-size-slider"
-            />
-            <span style={{ fontSize: '1.5rem', fontFamily: 'serif' }}>{brushSize}</span>
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            fontFamily: 'sans-serif',
+        }}>
+
+            <div style={{
+                display: 'flex',
+                gap: '1rem',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+            }}>
+                {sizes.map((size, index) => (
+                    <div
+                        key={index}
+                        onClick={() => setBrushSize(size)}
+                        style={{
+                            width: size,
+                            height: size,
+                            borderRadius: '50%',
+                            backgroundColor: brushSize === size ? '#c084fc' : '#E5e7eb',
+                            border: brushSize === size ? '2px solid #1976d2' : '2px solid transparent',
+                            cursor: 'pointer',
+                            transition: 'transform 0.2s ease',
+                        }}
+                        title={`Size ${size}`}
+                    />
+                ))}
+            </div>
         </div>
     );
 }
