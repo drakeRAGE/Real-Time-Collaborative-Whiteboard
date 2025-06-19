@@ -6,6 +6,7 @@ import { clearCanvas, deleteRoom } from "../utils/canvasUtils";
 import UsersList from './UsersList';
 import LiveCursors from './LiveCursors';
 import Modal from "../UI/Modal";
+import CopyUrl from "../UI/CopyUrl";
 
 function Whiteboard() {
     const { roomId } = useParams();
@@ -232,6 +233,7 @@ function Whiteboard() {
 
             {showDeleteModal && <Modal handleClick={handleDeleteRoom} setShowModal={setShowDeleteModal} name={"Delete"} message={"Are you sure you want to delete this room? This action cannot be undone."} />}
             {showClearModal && <Modal handleClick={handleClearBoard} setShowModal={setShowClearModal} name={"Clear"} message={"Are you sure you want to clear the canvas? This action cannot be undo."} />}
+            <CopyUrl />
         </div>
     );
 }
