@@ -115,6 +115,57 @@ function Whiteboard() {
                             ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
                         }
                         ctx.closePath();
+                    } else if (shape === 'arrowUp') {
+                        const centerX = (x0 + x1) / 2;
+                        const centerY = (y0 + y1) / 2;
+                        const width = Math.abs(x1 - x0);
+                        ctx.moveTo(centerX, y0);
+                        ctx.lineTo(x0, centerY);
+                        ctx.lineTo(centerX - width * 0.1, centerY);
+                        ctx.lineTo(centerX - width * 0.1, y1);
+                        ctx.lineTo(centerX + width * 0.1, y1);
+                        ctx.lineTo(centerX + width * 0.1, centerY);
+                        ctx.lineTo(x1, centerY);
+                        ctx.closePath();
+
+                    } else if (shape === 'arrowDown') {
+                        const centerX = (x0 + x1) / 2;
+                        const centerY = (y0 + y1) / 2;
+                        const width = Math.abs(x1 - x0);
+                        ctx.moveTo(centerX, y1);
+                        ctx.lineTo(x0, centerY);
+                        ctx.lineTo(centerX - width * 0.1, centerY);
+                        ctx.lineTo(centerX - width * 0.1, y0);
+                        ctx.lineTo(centerX + width * 0.1, y0);
+                        ctx.lineTo(centerX + width * 0.1, centerY);
+                        ctx.lineTo(x1, centerY);
+                        ctx.closePath();
+
+                    } else if (shape === 'arrowLeft') {
+                        const centerX = (x0 + x1) / 2;
+                        const centerY = (y0 + y1) / 2;
+                        const height = Math.abs(y1 - y0);
+                        ctx.moveTo(x0, centerY);
+                        ctx.lineTo(centerX, y0);
+                        ctx.lineTo(centerX, centerY - height * 0.1);
+                        ctx.lineTo(x1, centerY - height * 0.1);
+                        ctx.lineTo(x1, centerY + height * 0.1);
+                        ctx.lineTo(centerX, centerY + height * 0.1);
+                        ctx.lineTo(centerX, y1);
+                        ctx.closePath();
+
+                    } else if (shape === 'arrowRight') {
+                        const centerX = (x0 + x1) / 2;
+                        const centerY = (y0 + y1) / 2;
+                        const height = Math.abs(y1 - y0);
+                        ctx.moveTo(x1, centerY);
+                        ctx.lineTo(centerX, y0);
+                        ctx.lineTo(centerX, centerY - height * 0.1);
+                        ctx.lineTo(x0, centerY - height * 0.1);
+                        ctx.lineTo(x0, centerY + height * 0.1);
+                        ctx.lineTo(centerX, centerY + height * 0.1);
+                        ctx.lineTo(centerX, y1);
+                        ctx.closePath();
                     }
                 } else {
                     // Handle regular line drawings
@@ -278,6 +329,57 @@ function Whiteboard() {
                     ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
                 }
                 ctx.closePath();
+            } else if (data.shape === 'arrowUp') {
+                const centerX = (data.x0 + data.x1) / 2;
+                const centerY = (data.y0 + data.y1) / 2;
+                const width = Math.abs(data.x1 - data.x0);
+                ctx.moveTo(centerX, data.y0);
+                ctx.lineTo(data.x0, centerY);
+                ctx.lineTo(centerX - width * 0.1, centerY);
+                ctx.lineTo(centerX - width * 0.1, data.y1);
+                ctx.lineTo(centerX + width * 0.1, data.y1);
+                ctx.lineTo(centerX + width * 0.1, centerY);
+                ctx.lineTo(data.x1, centerY);
+                ctx.closePath();
+
+            } else if (data.shape === 'arrowDown') {
+                const centerX = (data.x0 + data.x1) / 2;
+                const centerY = (data.y0 + data.y1) / 2;
+                const width = Math.abs(data.x1 - data.x0);
+                ctx.moveTo(centerX, data.y1);
+                ctx.lineTo(data.x0, centerY);
+                ctx.lineTo(centerX - width * 0.1, centerY);
+                ctx.lineTo(centerX - width * 0.1, data.y0);
+                ctx.lineTo(centerX + width * 0.1, data.y0);
+                ctx.lineTo(centerX + width * 0.1, centerY);
+                ctx.lineTo(data.x1, centerY);
+                ctx.closePath();
+
+            } else if (data.shape === 'arrowLeft') {
+                const centerX = (data.x0 + data.x1) / 2;
+                const centerY = (data.y0 + data.y1) / 2;
+                const height = Math.abs(data.y1 - data.y0);
+                ctx.moveTo(data.x0, centerY);
+                ctx.lineTo(centerX, data.y0);
+                ctx.lineTo(centerX, centerY - height * 0.1);
+                ctx.lineTo(data.x1, centerY - height * 0.1);
+                ctx.lineTo(data.x1, centerY + height * 0.1);
+                ctx.lineTo(centerX, centerY + height * 0.1);
+                ctx.lineTo(centerX, data.y1);
+                ctx.closePath();
+
+            } else if (data.shape === 'arrowRight') {
+                const centerX = (data.x0 + data.x1) / 2;
+                const centerY = (data.y0 + data.y1) / 2;
+                const height = Math.abs(data.y1 - data.y0);
+                ctx.moveTo(data.x1, centerY);
+                ctx.lineTo(centerX, data.y0);
+                ctx.lineTo(centerX, centerY - height * 0.1);
+                ctx.lineTo(data.x0, centerY - height * 0.1);
+                ctx.lineTo(data.x0, centerY + height * 0.1);
+                ctx.lineTo(centerX, centerY + height * 0.1);
+                ctx.lineTo(centerX, data.y1);
+                ctx.closePath();
             }
 
             ctx.strokeStyle = data.color;
@@ -355,6 +457,61 @@ function Whiteboard() {
                 const angle = i * 2 * Math.PI / 6;
                 ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
             }
+            ctx.closePath();
+        } else if (selectedShape === 'arrowUp') {
+            const centerX = (startPos.x + endPos.x) / 2;
+            const centerY = (startPos.y + endPos.y) / 2;
+            const width = Math.abs(endPos.x - startPos.x);
+            const height = Math.abs(endPos.y - startPos.y);
+            ctx.moveTo(centerX, startPos.y); // arrow tip
+            ctx.lineTo(startPos.x, centerY);
+            ctx.lineTo(centerX - width * 0.1, centerY);
+            ctx.lineTo(centerX - width * 0.1, endPos.y);
+            ctx.lineTo(centerX + width * 0.1, endPos.y);
+            ctx.lineTo(centerX + width * 0.1, centerY);
+            ctx.lineTo(endPos.x, centerY);
+            ctx.closePath();
+
+        } else if (selectedShape === 'arrowDown') {
+            const centerX = (startPos.x + endPos.x) / 2;
+            const centerY = (startPos.y + endPos.y) / 2;
+            const width = Math.abs(endPos.x - startPos.x);
+            const height = Math.abs(endPos.y - startPos.y);
+            ctx.moveTo(centerX, endPos.y); // arrow tip
+            ctx.lineTo(startPos.x, centerY);
+            ctx.lineTo(centerX - width * 0.1, centerY);
+            ctx.lineTo(centerX - width * 0.1, startPos.y);
+            ctx.lineTo(centerX + width * 0.1, startPos.y);
+            ctx.lineTo(centerX + width * 0.1, centerY);
+            ctx.lineTo(endPos.x, centerY);
+            ctx.closePath();
+
+        } else if (selectedShape === 'arrowLeft') {
+            const centerX = (startPos.x + endPos.x) / 2;
+            const centerY = (startPos.y + endPos.y) / 2;
+            const width = Math.abs(endPos.x - startPos.x);
+            const height = Math.abs(endPos.y - startPos.y);
+            ctx.moveTo(startPos.x, centerY); // arrow tip
+            ctx.lineTo(centerX, startPos.y);
+            ctx.lineTo(centerX, centerY - height * 0.1);
+            ctx.lineTo(endPos.x, centerY - height * 0.1);
+            ctx.lineTo(endPos.x, centerY + height * 0.1);
+            ctx.lineTo(centerX, centerY + height * 0.1);
+            ctx.lineTo(centerX, endPos.y);
+            ctx.closePath();
+
+        } else if (selectedShape === 'arrowRight') {
+            const centerX = (startPos.x + endPos.x) / 2;
+            const centerY = (startPos.y + endPos.y) / 2;
+            const width = Math.abs(endPos.x - startPos.x);
+            const height = Math.abs(endPos.y - startPos.y);
+            ctx.moveTo(endPos.x, centerY); // arrow tip
+            ctx.lineTo(centerX, startPos.y);
+            ctx.lineTo(centerX, centerY - height * 0.1);
+            ctx.lineTo(startPos.x, centerY - height * 0.1);
+            ctx.lineTo(startPos.x, centerY + height * 0.1);
+            ctx.lineTo(centerX, centerY + height * 0.1);
+            ctx.lineTo(centerX, endPos.y);
             ctx.closePath();
         }
 
