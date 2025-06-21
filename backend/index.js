@@ -138,19 +138,24 @@ io.on('connection', (socket) => {
     
     const rooms = await Room.find({ users: socket.id });
     for (const room of rooms) {
-      room.users = room.users.filter(userId => userId !== socket.id);
-      await room.save();
-      
-      // Get remaining connected users
-      const remainingUsers = room.users.filter(userId => connectedUsers.has(userId));
-      
-      io.to(room.roomId).emit('userLeft', { 
-        userId: socket.id, 
-        users: remainingUsers,
-        username: `User ${remainingUsers.length + 1}` // Add username for toast
-      });
+        // Remove user from room in database
+        await Room.updateOne(
+            { roomId: room.roomId },
+            { $pull: { users: socket.id } }
+        );
+        
+        // Get remaining connected users
+        const remainingUsers = room.users.filter(userId => 
+            userId !== socket.id && connectedUsers.has(userId)
+        );
+        
+        io.to(room.roomId).emit('userLeft', { 
+            userId: socket.id, 
+            users: remainingUsers,
+            username: `User ${remainingUsers.length + 1}`
+        });
     }
-  });
+});
 });
 
 const PORT = 5000;
