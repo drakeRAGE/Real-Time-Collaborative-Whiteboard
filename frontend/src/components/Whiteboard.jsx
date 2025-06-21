@@ -70,6 +70,29 @@ function Whiteboard() {
                         const radiusX = Math.abs(x1 - x0) / 2;
                         const radiusY = Math.abs(y1 - y0) / 2;
                         ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+                    } else if (shape === 'square') {
+                        const sideLength = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+                        const signX = x1 > x0 ? 1 : -1;
+                        const signY = y1 > y0 ? 1 : -1;
+                        ctx.rect(x0, y0, signX * sideLength, signY * sideLength);
+                    } else if (shape === 'triangle') {
+                        ctx.moveTo(x0, y1);
+                        ctx.lineTo(x1, y1);
+                        ctx.lineTo((x0 + x1) / 2, y0);
+                        ctx.closePath();
+                    } else if (shape === 'star') {
+                        const centerX = (x0 + x1) / 2;
+                        const centerY = (y0 + y1) / 2;
+                        const outerRadius = Math.min(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2;
+                        const innerRadius = outerRadius / 2;
+                    
+                        ctx.moveTo(centerX + outerRadius * Math.cos(0), centerY + outerRadius * Math.sin(0));
+                        for (let i = 0; i < 10; i++) {
+                            const angle = i * Math.PI / 5;
+                            const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                            ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
+                        }
+                        ctx.closePath();
                     }
                 } else {
                     // Handle regular line drawings
@@ -188,6 +211,29 @@ function Whiteboard() {
 
                 // Draw ellipse/oval
                 ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+            } else if (data.shape === 'square') {
+                const sideLength = Math.max(Math.abs(data.x1 - data.x0), Math.abs(data.y1 - data.y0));
+                const signX = data.x1 > data.x0 ? 1 : -1;
+                const signY = data.y1 > data.y0 ? 1 : -1;
+                ctx.rect(data.x0, data.y0, signX * sideLength, signY * sideLength);
+            } else if (data.shape === 'triangle') {
+                ctx.moveTo(data.x0, data.y1);
+                ctx.lineTo(data.x1, data.y1);
+                ctx.lineTo((data.x0 + data.x1) / 2, data.y0);
+                ctx.closePath();
+            } else if (data.shape === 'star') {
+                const centerX = (data.x0 + data.x1) / 2;
+                const centerY = (data.y0 + data.y1) / 2;
+                const outerRadius = Math.min(Math.abs(data.x1 - data.x0), Math.abs(data.y1 - data.y0)) / 2;
+                const innerRadius = outerRadius / 2;
+
+                ctx.moveTo(centerX + outerRadius * Math.cos(0), centerY + outerRadius * Math.sin(0));
+                for (let i = 0; i < 10; i++) {
+                    const angle = i * Math.PI / 5;
+                    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                    ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
+                }
+                ctx.closePath();
             }
 
             ctx.strokeStyle = data.color;
@@ -221,6 +267,29 @@ function Whiteboard() {
 
             // Draw ellipse/oval
             ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+        } else if (selectedShape === 'square') {
+            const sideLength = Math.max(Math.abs(endPos.x - startPos.x), Math.abs(endPos.y - startPos.y));
+            const signX = endPos.x > startPos.x ? 1 : -1;
+            const signY = endPos.y > startPos.y ? 1 : -1;
+            ctx.rect(startPos.x, startPos.y, signX * sideLength, signY * sideLength);
+        } else if (selectedShape === 'triangle') {
+            ctx.moveTo(startPos.x, endPos.y);
+            ctx.lineTo(endPos.x, endPos.y);
+            ctx.lineTo((startPos.x + endPos.x) / 2, startPos.y);
+            ctx.closePath();
+        } else if (selectedShape === 'star') {
+            const centerX = (startPos.x + endPos.x) / 2;
+            const centerY = (startPos.y + endPos.y) / 2;
+            const outerRadius = Math.min(Math.abs(endPos.x - startPos.x), Math.abs(endPos.y - startPos.y)) / 2;
+            const innerRadius = outerRadius / 2;
+
+            ctx.moveTo(centerX + outerRadius * Math.cos(0), centerY + outerRadius * Math.sin(0));
+            for (let i = 0; i < 10; i++) {
+                const angle = i * Math.PI / 5;
+                const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
+            }
+            ctx.closePath();
         }
 
         ctx.strokeStyle = color;
