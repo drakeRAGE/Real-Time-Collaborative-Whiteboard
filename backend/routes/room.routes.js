@@ -1,8 +1,10 @@
 import express from 'express';
-
-const router = express.Router();
 import { deleteRoom } from '../controllers/room.controller.js';
 
-router.delete('/:roomId', deleteRoom);
+export const createRoomRouter = (io) => {
+    const router = express.Router();
 
-export default router; 
+    router.delete('/rooms/:roomId', deleteRoom(io));
+
+    return router;
+};

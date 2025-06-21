@@ -6,7 +6,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { Room } from './model/Room.model.js';
-import roomRoutes from './routes/room.routes.js';
+import { createRoomRouter } from './routes/room.routes.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -154,18 +154,6 @@ io.on('connection', (socket) => {
 });
 
 const PORT = 5000;
-// Add this route before server.listen
-app.delete('/api/rooms/:roomId', async (req, res) => {
-    try {
-        const { roomId } = req.params;
-        await Room.deleteOne({ roomId });
-        io.to(roomId).emit('roomDeleted');
-        res.status(200).json({ success: true });
-    } catch (error) {
-        console.error('Error deleting room:', error);
-        res.status(500).json({ success: false });
-    }
-});
 
-app.use('/api/rooms', roomRoutes);
+app.use('/api', createRoomRouter(io));
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
