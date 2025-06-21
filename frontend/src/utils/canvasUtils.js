@@ -24,3 +24,26 @@ export const deleteRoom = async (socket, roomId) => {
         return false;
     }
 };
+
+export const startDrawingUtils = (nativeEvent, setPosition, setIsDrawing, selectedShape, setStartPos) => {
+    const { offsetX, offsetY } = nativeEvent;
+    setPosition({ x: offsetX, y: offsetY });
+    setIsDrawing(true);
+    if (selectedShape) {
+        setStartPos({ x: offsetX, y: offsetY });
+    }
+};
+
+export const endDrawingUtils = (nativeEvent, isDrawing, position, color, selectedShape, drawShape, setStartPos, setIsDrawing, drawLine) => {
+    if (!isDrawing) return;
+
+    const { offsetX, offsetY } = nativeEvent;
+    if (selectedShape) {
+        drawShape({ x: offsetX, y: offsetY });
+        setStartPos(null);
+    } else {
+        drawLine(position.x, position.y, offsetX, offsetY, true, color);
+    }
+
+    setIsDrawing(false);
+};

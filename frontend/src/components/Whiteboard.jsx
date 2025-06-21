@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { useParams, useNavigate } from "react-router-dom";
 import BrushSizeSelector from "./BrushSizeSelector";
-import { clearCanvas, deleteRoom } from "../utils/canvasUtils";
+import { clearCanvas, deleteRoom, startDrawingUtils, endDrawingUtils } from "../utils/canvasUtils";
 import UsersList from './UsersList';
 import LiveCursors from './LiveCursors';
 import Modal from "../UI/Modal";
@@ -24,6 +24,8 @@ function Whiteboard() {
     const [showClearModal, setShowClearModal] = useState(false);
     const [selectedShape, setSelectedShape] = useState(null);
     const [startPos, setStartPos] = useState(null);
+    const navigate = useNavigate();
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     const handleClearBoard = () => {
         if (!socket) return;
@@ -123,26 +125,11 @@ function Whiteboard() {
 
     // Modify startDrawing to handle shapes
     const startDrawing = ({ nativeEvent }) => {
-        const { offsetX, offsetY } = nativeEvent;
-        setPosition({ x: offsetX, y: offsetY });
-        setIsDrawing(true);
-        if (selectedShape) {
-            setStartPos({ x: offsetX, y: offsetY });
-        }
+        startDrawingUtils(nativeEvent, setPosition, setIsDrawing, selectedShape, setStartPos);
     };
 
     const endDrawing = ({ nativeEvent }) => {
-        if (!isDrawing) return;
-
-        const { offsetX, offsetY } = nativeEvent;
-        if (selectedShape) {
-            drawShape({ x: offsetX, y: offsetY });
-            setStartPos(null);
-        } else {
-            drawLine(position.x, position.y, offsetX, offsetY, true, color);
-        }
-
-        setIsDrawing(false);
+        endDrawingUtils(nativeEvent, isDrawing, position, color, selectedShape, drawShape, setStartPos, setIsDrawing, drawLine);
     };
 
     const draw = ({ nativeEvent }) => {
@@ -168,9 +155,6 @@ function Whiteboard() {
         if (!emit || !socket) return; // Also check socket
         socket.emit("draw", { x0, y0, x1, y1, color: lineColor, size });
     };
-
-    const navigate = useNavigate();
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     const handleDeleteRoom = async () => {
         const success = await deleteRoom(socket, roomId);

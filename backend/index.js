@@ -5,6 +5,8 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import { Room } from './model/Room.model.js';
+import roomRoutes from './routes/room.routes.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -20,29 +22,13 @@ dotenv.config();
 
 app.use(cors());
 
-const rooms = new Map();
-
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Define schemas
-const roomSchema = new mongoose.Schema({
-  roomId: String,
-  users: [String],
-  drawings: [{
-    x0: Number,
-    y0: Number,
-    x1: Number,
-    y1: Number,
-    color: String,
-    size: Number,
-    shape: String // Add shape type
-  }]
-});
+const connectedUsers = new Map();
 
-const Room = mongoose.model('Room', roomSchema);
 
 io.on('connection', (socket) => {
   // Add user to connected users map
@@ -167,9 +153,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// Add this at the top with other declarations
-const connectedUsers = new Map();
-
 const PORT = 5000;
 // Add this route before server.listen
 app.delete('/api/rooms/:roomId', async (req, res) => {
@@ -184,4 +167,5 @@ app.delete('/api/rooms/:roomId', async (req, res) => {
     }
 });
 
+app.use('/api/rooms', roomRoutes);
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
