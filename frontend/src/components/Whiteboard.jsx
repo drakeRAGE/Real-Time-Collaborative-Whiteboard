@@ -3,6 +3,9 @@ import { io } from "socket.io-client";
 import { useParams, useNavigate } from "react-router-dom";
 import BrushSizeSelector from "./BrushSizeSelector";
 import { clearCanvas, deleteRoom, startDrawingUtils, endDrawingUtils } from "../utils/canvasUtils";
+
+// All drawshape fncs from utils
+import { drawRectangle, drawCircle, drawSquare, drawTriangle, drawStar, drawPentagon, drawHexagon, drawArrowUp, drawArrowDown, drawArrowLeft, drawArrowRight } from '../utils/canvasUtils';
 import UsersList from './UsersList';
 import LiveCursors from './LiveCursors';
 import Modal from "../UI/Modal";
@@ -402,117 +405,40 @@ function Whiteboard() {
 
         ctx.beginPath();
 
-        if (selectedShape === 'rectangle') {
-            ctx.rect(startPos.x, startPos.y, endPos.x - startPos.x, endPos.y - startPos.y);
-        } else if (selectedShape === 'circle') {
-            // Calculate center point and radii
-            const centerX = (startPos.x + endPos.x) / 2;
-            const centerY = (startPos.y + endPos.y) / 2;
-            const radiusX = Math.abs(endPos.x - startPos.x) / 2;
-            const radiusY = Math.abs(endPos.y - startPos.y) / 2;
-
-            // Draw ellipse/oval
-            ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
-        } else if (selectedShape === 'square') {
-            const sideLength = Math.max(Math.abs(endPos.x - startPos.x), Math.abs(endPos.y - startPos.y));
-            const signX = endPos.x > startPos.x ? 1 : -1;
-            const signY = endPos.y > startPos.y ? 1 : -1;
-            ctx.rect(startPos.x, startPos.y, signX * sideLength, signY * sideLength);
-        } else if (selectedShape === 'triangle') {
-            ctx.moveTo(startPos.x, endPos.y);
-            ctx.lineTo(endPos.x, endPos.y);
-            ctx.lineTo((startPos.x + endPos.x) / 2, startPos.y);
-            ctx.closePath();
-        } else if (selectedShape === 'star') {
-            const centerX = (startPos.x + endPos.x) / 2;
-            const centerY = (startPos.y + endPos.y) / 2;
-            const outerRadius = Math.min(Math.abs(endPos.x - startPos.x), Math.abs(endPos.y - startPos.y)) / 2;
-            const innerRadius = outerRadius / 2;
-
-            ctx.moveTo(centerX + outerRadius * Math.cos(0), centerY + outerRadius * Math.sin(0));
-            for (let i = 0; i < 10; i++) {
-                const angle = i * Math.PI / 5;
-                const radius = i % 2 === 0 ? outerRadius : innerRadius;
-                ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
-            }
-            ctx.closePath();
-        } else if (selectedShape === 'pentagon') {
-            const centerX = (startPos.x + endPos.x) / 2;
-            const centerY = (startPos.y + endPos.y) / 2;
-            const radius = Math.min(Math.abs(endPos.x - startPos.x), Math.abs(endPos.y - startPos.y)) / 2;
-
-            ctx.moveTo(centerX + radius * Math.cos(0), centerY + radius * Math.sin(0));
-            for (let i = 1; i <= 5; i++) {
-                const angle = i * 2 * Math.PI / 5;
-                ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
-            }
-            ctx.closePath();
-        } else if (selectedShape === 'hexagon') {
-            const centerX = (startPos.x + endPos.x) / 2;
-            const centerY = (startPos.y + endPos.y) / 2;
-            const radius = Math.min(Math.abs(endPos.x - startPos.x), Math.abs(endPos.y - startPos.y)) / 2;
-
-            ctx.moveTo(centerX + radius * Math.cos(0), centerY + radius * Math.sin(0));
-            for (let i = 1; i <= 6; i++) {
-                const angle = i * 2 * Math.PI / 6;
-                ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
-            }
-            ctx.closePath();
-        } else if (selectedShape === 'arrowUp') {
-            const centerX = (startPos.x + endPos.x) / 2;
-            const centerY = (startPos.y + endPos.y) / 2;
-            const width = Math.abs(endPos.x - startPos.x);
-            const height = Math.abs(endPos.y - startPos.y);
-            ctx.moveTo(centerX, startPos.y); // arrow tip
-            ctx.lineTo(startPos.x, centerY);
-            ctx.lineTo(centerX - width * 0.1, centerY);
-            ctx.lineTo(centerX - width * 0.1, endPos.y);
-            ctx.lineTo(centerX + width * 0.1, endPos.y);
-            ctx.lineTo(centerX + width * 0.1, centerY);
-            ctx.lineTo(endPos.x, centerY);
-            ctx.closePath();
-
-        } else if (selectedShape === 'arrowDown') {
-            const centerX = (startPos.x + endPos.x) / 2;
-            const centerY = (startPos.y + endPos.y) / 2;
-            const width = Math.abs(endPos.x - startPos.x);
-            const height = Math.abs(endPos.y - startPos.y);
-            ctx.moveTo(centerX, endPos.y); // arrow tip
-            ctx.lineTo(startPos.x, centerY);
-            ctx.lineTo(centerX - width * 0.1, centerY);
-            ctx.lineTo(centerX - width * 0.1, startPos.y);
-            ctx.lineTo(centerX + width * 0.1, startPos.y);
-            ctx.lineTo(centerX + width * 0.1, centerY);
-            ctx.lineTo(endPos.x, centerY);
-            ctx.closePath();
-
-        } else if (selectedShape === 'arrowLeft') {
-            const centerX = (startPos.x + endPos.x) / 2;
-            const centerY = (startPos.y + endPos.y) / 2;
-            const width = Math.abs(endPos.x - startPos.x);
-            const height = Math.abs(endPos.y - startPos.y);
-            ctx.moveTo(startPos.x, centerY); // arrow tip
-            ctx.lineTo(centerX, startPos.y);
-            ctx.lineTo(centerX, centerY - height * 0.1);
-            ctx.lineTo(endPos.x, centerY - height * 0.1);
-            ctx.lineTo(endPos.x, centerY + height * 0.1);
-            ctx.lineTo(centerX, centerY + height * 0.1);
-            ctx.lineTo(centerX, endPos.y);
-            ctx.closePath();
-
-        } else if (selectedShape === 'arrowRight') {
-            const centerX = (startPos.x + endPos.x) / 2;
-            const centerY = (startPos.y + endPos.y) / 2;
-            const width = Math.abs(endPos.x - startPos.x);
-            const height = Math.abs(endPos.y - startPos.y);
-            ctx.moveTo(endPos.x, centerY); // arrow tip
-            ctx.lineTo(centerX, startPos.y);
-            ctx.lineTo(centerX, centerY - height * 0.1);
-            ctx.lineTo(startPos.x, centerY - height * 0.1);
-            ctx.lineTo(startPos.x, centerY + height * 0.1);
-            ctx.lineTo(centerX, centerY + height * 0.1);
-            ctx.lineTo(centerX, endPos.y);
-            ctx.closePath();
+        switch (selectedShape) {
+            case 'rectangle':
+                drawRectangle(ctx, startPos, endPos);
+                break;
+            case 'circle':
+                drawCircle(ctx, startPos, endPos);
+                break;
+            case 'square':
+                drawSquare(ctx, startPos, endPos);
+                break;
+            case 'triangle':
+                drawTriangle(ctx, startPos, endPos);
+                break;
+            case 'star':
+                drawStar(ctx, startPos, endPos);
+                break;
+            case 'pentagon':
+                drawPentagon(ctx, startPos, endPos);
+                break;
+            case 'hexagon':
+                drawHexagon(ctx, startPos, endPos);
+                break;
+            case 'arrowUp':
+                drawArrowUp(ctx, startPos, endPos);
+                break;
+            case 'arrowDown':
+                drawArrowDown(ctx, startPos, endPos);
+                break;
+            case 'arrowLeft':
+                drawArrowLeft(ctx, startPos, endPos);
+                break;
+            case 'arrowRight':
+                drawArrowRight(ctx, startPos, endPos);
+                break;
         }
 
         ctx.strokeStyle = color;
@@ -534,31 +460,11 @@ function Whiteboard() {
 
     return (
         <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-            <header
-                style={{
-                    padding: "1.5rem",
-                    textAlign: "center",
-                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                    color: "white",
-                    fontSize: "2rem",
-                    fontWeight: "600",
-                    fontFamily: "'Inter', sans-serif",
-                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-                }}
-            >
+            <header style={{ padding: "1.5rem", textAlign: "center", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "white", fontSize: "2rem", fontWeight: "600", fontFamily: "'Inter', sans-serif", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}>
                 Collaborative Whiteboard
             </header>
 
-            <div style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: "1.5rem",
-                padding: "1rem",
-                background: "white",
-                boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                marginBottom: "1rem"
-            }}>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "1.5rem", padding: "1rem", background: "white", boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)", marginBottom: "1rem" }}>
                 <ShapeSelector selectedShape={selectedShape} setSelectedShape={setSelectedShape} />
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                     <input
@@ -575,27 +481,12 @@ function Whiteboard() {
 
                 <GrClear
                     onClick={() => setShowClearModal(true)}
-                    style={{
-                        fontSize: '1.75rem',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        '&:hover': {
-                            background: '#e2e8f0'
-                        }
-                    }}
+                    style={{ fontSize: '1.75rem', cursor: 'pointer', transition: 'all 0.2s', '&:hover': { background: '#e2e8f0' } }}
                     title="Clear Board"
                 />
                 <MdDelete
                     onClick={() => setShowDeleteModal(true)}
-                    style={{
-                        fontSize: '2rem',
-                        cursor: 'pointer',
-                        color: '#ef4444',
-                        transition: 'all 0.2s',
-                        '&:hover': {
-                            background: '#fee2e2'
-                        }
-                    }}
+                    style={{ fontSize: '2rem', cursor: 'pointer', color: '#ef4444', transition: 'all 0.2s', '&:hover': { background: '#fee2e2' } }}
                     title="Delete Room"
                 />
             </div>
