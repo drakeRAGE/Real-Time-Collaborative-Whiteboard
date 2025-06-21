@@ -85,11 +85,33 @@ function Whiteboard() {
                         const centerY = (y0 + y1) / 2;
                         const outerRadius = Math.min(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2;
                         const innerRadius = outerRadius / 2;
-                    
+
                         ctx.moveTo(centerX + outerRadius * Math.cos(0), centerY + outerRadius * Math.sin(0));
                         for (let i = 0; i < 10; i++) {
                             const angle = i * Math.PI / 5;
                             const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                            ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
+                        }
+                        ctx.closePath();
+                    } else if (shape === 'pentagon') {
+                        const centerX = (x0 + x1) / 2;
+                        const centerY = (y0 + y1) / 2;
+                        const radius = Math.min(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2;
+
+                        ctx.moveTo(centerX + radius * Math.cos(0), centerY + radius * Math.sin(0));
+                        for (let i = 1; i <= 5; i++) {
+                            const angle = i * 2 * Math.PI / 5;
+                            ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
+                        }
+                        ctx.closePath();
+                    } else if (shape === 'hexagon') {
+                        const centerX = (x0 + x1) / 2;
+                        const centerY = (y0 + y1) / 2;
+                        const radius = Math.min(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2;
+
+                        ctx.moveTo(centerX + radius * Math.cos(0), centerY + radius * Math.sin(0));
+                        for (let i = 1; i <= 6; i++) {
+                            const angle = i * 2 * Math.PI / 6;
                             ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
                         }
                         ctx.closePath();
@@ -234,6 +256,28 @@ function Whiteboard() {
                     ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
                 }
                 ctx.closePath();
+            } else if (data.shape === 'pentagon') {
+                const centerX = (data.x0 + data.x1) / 2;
+                const centerY = (data.y0 + data.y1) / 2;
+                const radius = Math.min(Math.abs(data.x1 - data.x0), Math.abs(data.y1 - data.y0)) / 2;
+
+                ctx.moveTo(centerX + radius * Math.cos(0), centerY + radius * Math.sin(0));
+                for (let i = 1; i <= 5; i++) {
+                    const angle = i * 2 * Math.PI / 5;
+                    ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
+                }
+                ctx.closePath();
+            } else if (data.shape === 'hexagon') {
+                const centerX = (data.x0 + data.x1) / 2;
+                const centerY = (data.y0 + data.y1) / 2;
+                const radius = Math.min(Math.abs(data.x1 - data.x0), Math.abs(data.y1 - data.y0)) / 2;
+
+                ctx.moveTo(centerX + radius * Math.cos(0), centerY + radius * Math.sin(0));
+                for (let i = 1; i <= 6; i++) {
+                    const angle = i * 2 * Math.PI / 6;
+                    ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
+                }
+                ctx.closePath();
             }
 
             ctx.strokeStyle = data.color;
@@ -287,6 +331,28 @@ function Whiteboard() {
             for (let i = 0; i < 10; i++) {
                 const angle = i * Math.PI / 5;
                 const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
+            }
+            ctx.closePath();
+        } else if (selectedShape === 'pentagon') {
+            const centerX = (startPos.x + endPos.x) / 2;
+            const centerY = (startPos.y + endPos.y) / 2;
+            const radius = Math.min(Math.abs(endPos.x - startPos.x), Math.abs(endPos.y - startPos.y)) / 2;
+
+            ctx.moveTo(centerX + radius * Math.cos(0), centerY + radius * Math.sin(0));
+            for (let i = 1; i <= 5; i++) {
+                const angle = i * 2 * Math.PI / 5;
+                ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
+            }
+            ctx.closePath();
+        } else if (selectedShape === 'hexagon') {
+            const centerX = (startPos.x + endPos.x) / 2;
+            const centerY = (startPos.y + endPos.y) / 2;
+            const radius = Math.min(Math.abs(endPos.x - startPos.x), Math.abs(endPos.y - startPos.y)) / 2;
+
+            ctx.moveTo(centerX + radius * Math.cos(0), centerY + radius * Math.sin(0));
+            for (let i = 1; i <= 6; i++) {
+                const angle = i * 2 * Math.PI / 6;
                 ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
             }
             ctx.closePath();
