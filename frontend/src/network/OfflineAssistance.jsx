@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { IoCloudOfflineOutline } from "react-icons/io5";
 import { IoCloudDoneOutline } from "react-icons/io5";
+import { updateStatus } from '../utils/networkUtils';
 
 const ONLINE_HASH = import.meta.env.VITE_NETWORK_ONLINE_HASH;
 const OFFLINE_HASH = import.meta.env.VITE_NETWORK_OFFLINE_HASH;
@@ -10,20 +11,11 @@ function OfflineAssistance() {
     const [showBackOnline, setShowBackOnline] = useState(false);
 
     useEffect(() => {
-        const updateStatus = (status) => {
-            setIsOnline(status);
-            localStorage.setItem("network", status ? ONLINE_HASH : OFFLINE_HASH);
+        //Passing `navigator.onLine` as `status` to show current network state.
+        updateStatus(navigator.onLine, setIsOnline, setShowBackOnline, ONLINE_HASH, OFFLINE_HASH);
 
-            if (status) {
-                setShowBackOnline(true);
-                setTimeout(() => setShowBackOnline(false), 3000); // hide after 3s
-            }
-        };
-
-        updateStatus(navigator.onLine);
-
-        const handleOnline = () => updateStatus(true);
-        const handleOffline = () => updateStatus(false);
+        const handleOnline = () => updateStatus(true, setIsOnline, setShowBackOnline, ONLINE_HASH, OFFLINE_HASH);
+        const handleOffline = () => updateStatus(false, setIsOnline, setShowBackOnline, ONLINE_HASH, OFFLINE_HASH);
 
         window.addEventListener('online', handleOnline);
         window.addEventListener('offline', handleOffline);

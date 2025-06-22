@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CheckOline } from '../utils/networkUtils';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -8,12 +9,20 @@ function RoomSelection() {
 
     const handleJoinRoom = (e) => {
         e.preventDefault();
+
+        // Check if user is online
+        if (!CheckOline()) return;
+
+        // Proceed only if roomId is not empty
         if (roomId.trim()) {
             navigate(`/canva/${roomId}`);
         }
     };
 
     const handleCreateRoom = () => {
+        // Check if user is online
+        if (!CheckOline()) return;
+
         const newRoomId = uuidv4();
         navigate(`/canva/${newRoomId}`);
     };
