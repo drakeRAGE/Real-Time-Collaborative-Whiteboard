@@ -13,6 +13,7 @@ import CopyUrl from "../UI/CopyUrl";
 import ShapeSelector from './ShapeSelector';
 import { MdDelete } from "react-icons/md";
 import { GrClear } from "react-icons/gr";
+import { BsEraserFill } from "react-icons/bs";
 
 function Whiteboard() {
     const { roomId } = useParams();
@@ -29,6 +30,7 @@ function Whiteboard() {
     const [startPos, setStartPos] = useState(null);
     const navigate = useNavigate();
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isEraserActive, setIsEraserActive] = useState(false);
 
     const handleClearBoard = () => {
         if (!socket) return;
@@ -458,6 +460,15 @@ function Whiteboard() {
         }
     };
 
+    const toggleEraser = () => {
+        setIsEraserActive(!isEraserActive);
+        if (!isEraserActive) {
+            // set shape to be pencil which is null and color to be white
+            setSelectedShape(null);
+            setColor("#ffffff");
+        }
+    };
+
     return (
         <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
             <header style={{ padding: "1.5rem", textAlign: "center", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "white", fontSize: "2rem", fontWeight: "600", fontFamily: "'Inter', sans-serif", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}>
@@ -470,7 +481,13 @@ function Whiteboard() {
                     <input
                         type="color"
                         value={color}
-                        onChange={(e) => setColor(e.target.value)}
+                        onChange={(e) => {
+                            // if ther eraser is active and user selects color other than white then disable the eraser
+                            if (isEraserActive && e.target.value !== "#ffffff") {
+                                setIsEraserActive(false);
+                            }
+                            setColor(e.target.value);
+                        }}
                         style={{
                             width: "52px",
                             height: "52px",
@@ -489,6 +506,16 @@ function Whiteboard() {
                     style={{ fontSize: '2rem', cursor: 'pointer', color: '#ef4444', transition: 'all 0.2s', '&:hover': { background: '#fee2e2' } }}
                     title="Delete Room"
                 />
+                <button
+                    className={`tool-button ${isEraserActive ? 'active' : ''}`}
+                    title="Erase"
+                    onClick={toggleEraser}
+                    style={{ background: isEraserActive ? '#e0e7ff' : 'transparent', border: isEraserActive ? '2px solid #4f46e5' : '1px solid #e5e7eb', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s ease-in-out' }}
+                >
+                    <BsEraserFill
+                        style={{ color: isEraserActive ? '#4f46e5' : '#6b7280', fontSize: '1.25rem' }}
+                    />
+                </button>
             </div>
 
             <div style={{ flexGrow: 1, position: "relative" }}>
@@ -498,7 +525,7 @@ function Whiteboard() {
                     onMouseUp={endDrawing}
                     onMouseOut={endDrawing}
                     onMouseMove={draw}
-                    style={{ display: "block", width: "100%", height: "100%", cursor: "crosshair" }}
+                    style={{ display: "block", width: "100%", height: "100%", cursor: isEraserActive ? `url('/eraser.png'), auto` : "crosshair" }}
                 />
                 <LiveCursors socket={socket} roomId={roomId} />
                 <UsersList socket={socket} roomId={roomId} />
