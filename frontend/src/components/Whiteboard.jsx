@@ -476,7 +476,7 @@ function Whiteboard() {
             </header>
 
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "1.5rem", padding: "1rem", background: "white", boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)", marginBottom: "1rem" }}>
-                <ShapeSelector selectedShape={selectedShape} setSelectedShape={setSelectedShape} />
+                <ShapeSelector selectedShape={selectedShape} setSelectedShape={setSelectedShape} isEraserActive={isEraserActive} />
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                     <input
                         type="color"
