@@ -14,6 +14,8 @@ import ShapeSelector from './ShapeSelector';
 import { MdDelete } from "react-icons/md";
 import { GrClear } from "react-icons/gr";
 import { BsEraserFill } from "react-icons/bs";
+import { supabase } from "../utils/supabase";
+import { initializeSocket } from "../utils/socket";
 
 function Whiteboard() {
     const { roomId } = useParams();
@@ -38,156 +40,180 @@ function Whiteboard() {
         socket.emit('clear');
     };
     useEffect(() => {
-        const newSocket = io("http://localhost:5000", {
-            reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
-            transports: ['websocket', 'polling']
-        });
-
-        newSocket.on("connect_error", (err) => {
-            console.error("Connection error:", err);
-            setConnectionError("Failed to connect to server");
-        });
-
-        newSocket.on("connect", () => {
-            setConnectionError(null);
-            console.log("Connected to server");
-        });
-
-        newSocket.on("initialData", (drawings) => {
-            const ctx = ctxRef.current;
-            if (!ctx) return;
-
-            // Clear canvas first
+        if (canvasRef.current) {
             clearCanvas(canvasRef);
+        }
 
-            // Redraw all existing drawings
-            drawings.forEach(({ x0, y0, x1, y1, color: lineColor, size, shape }) => {
-                ctx.beginPath();
+        let newSocket;
 
-                if (shape) {
-                    if (shape === 'rectangle') {
-                        ctx.rect(x0, y0, x1 - x0, y1 - y0);
-                    } else if (shape === 'circle') {
-                        const centerX = (x0 + x1) / 2;
-                        const centerY = (y0 + y1) / 2;
-                        const radiusX = Math.abs(x1 - x0) / 2;
-                        const radiusY = Math.abs(y1 - y0) / 2;
-                        ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
-                    } else if (shape === 'square') {
-                        const sideLength = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
-                        const signX = x1 > x0 ? 1 : -1;
-                        const signY = y1 > y0 ? 1 : -1;
-                        ctx.rect(x0, y0, signX * sideLength, signY * sideLength);
-                    } else if (shape === 'triangle') {
-                        ctx.moveTo(x0, y1);
-                        ctx.lineTo(x1, y1);
-                        ctx.lineTo((x0 + x1) / 2, y0);
-                        ctx.closePath();
-                    } else if (shape === 'star') {
-                        const centerX = (x0 + x1) / 2;
-                        const centerY = (y0 + y1) / 2;
-                        const outerRadius = Math.min(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2;
-                        const innerRadius = outerRadius / 2;
+        const setupSocket = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                console.error("No session found");
+                setConnectionError("You are not logged in");
+                return;
+            }
 
-                        ctx.moveTo(centerX + outerRadius * Math.cos(0), centerY + outerRadius * Math.sin(0));
-                        for (let i = 0; i < 10; i++) {
-                            const angle = i * Math.PI / 5;
-                            const radius = i % 2 === 0 ? outerRadius : innerRadius;
-                            ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
-                        }
-                        ctx.closePath();
-                    } else if (shape === 'pentagon') {
-                        const centerX = (x0 + x1) / 2;
-                        const centerY = (y0 + y1) / 2;
-                        const radius = Math.min(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2;
-
-                        ctx.moveTo(centerX + radius * Math.cos(0), centerY + radius * Math.sin(0));
-                        for (let i = 1; i <= 5; i++) {
-                            const angle = i * 2 * Math.PI / 5;
-                            ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
-                        }
-                        ctx.closePath();
-                    } else if (shape === 'hexagon') {
-                        const centerX = (x0 + x1) / 2;
-                        const centerY = (y0 + y1) / 2;
-                        const radius = Math.min(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2;
-
-                        ctx.moveTo(centerX + radius * Math.cos(0), centerY + radius * Math.sin(0));
-                        for (let i = 1; i <= 6; i++) {
-                            const angle = i * 2 * Math.PI / 6;
-                            ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
-                        }
-                        ctx.closePath();
-                    } else if (shape === 'arrowUp') {
-                        const centerX = (x0 + x1) / 2;
-                        const centerY = (y0 + y1) / 2;
-                        const width = Math.abs(x1 - x0);
-                        ctx.moveTo(centerX, y0);
-                        ctx.lineTo(x0, centerY);
-                        ctx.lineTo(centerX - width * 0.1, centerY);
-                        ctx.lineTo(centerX - width * 0.1, y1);
-                        ctx.lineTo(centerX + width * 0.1, y1);
-                        ctx.lineTo(centerX + width * 0.1, centerY);
-                        ctx.lineTo(x1, centerY);
-                        ctx.closePath();
-
-                    } else if (shape === 'arrowDown') {
-                        const centerX = (x0 + x1) / 2;
-                        const centerY = (y0 + y1) / 2;
-                        const width = Math.abs(x1 - x0);
-                        ctx.moveTo(centerX, y1);
-                        ctx.lineTo(x0, centerY);
-                        ctx.lineTo(centerX - width * 0.1, centerY);
-                        ctx.lineTo(centerX - width * 0.1, y0);
-                        ctx.lineTo(centerX + width * 0.1, y0);
-                        ctx.lineTo(centerX + width * 0.1, centerY);
-                        ctx.lineTo(x1, centerY);
-                        ctx.closePath();
-
-                    } else if (shape === 'arrowLeft') {
-                        const centerX = (x0 + x1) / 2;
-                        const centerY = (y0 + y1) / 2;
-                        const height = Math.abs(y1 - y0);
-                        ctx.moveTo(x0, centerY);
-                        ctx.lineTo(centerX, y0);
-                        ctx.lineTo(centerX, centerY - height * 0.1);
-                        ctx.lineTo(x1, centerY - height * 0.1);
-                        ctx.lineTo(x1, centerY + height * 0.1);
-                        ctx.lineTo(centerX, centerY + height * 0.1);
-                        ctx.lineTo(centerX, y1);
-                        ctx.closePath();
-
-                    } else if (shape === 'arrowRight') {
-                        const centerX = (x0 + x1) / 2;
-                        const centerY = (y0 + y1) / 2;
-                        const height = Math.abs(y1 - y0);
-                        ctx.moveTo(x1, centerY);
-                        ctx.lineTo(centerX, y0);
-                        ctx.lineTo(centerX, centerY - height * 0.1);
-                        ctx.lineTo(x0, centerY - height * 0.1);
-                        ctx.lineTo(x0, centerY + height * 0.1);
-                        ctx.lineTo(centerX, centerY + height * 0.1);
-                        ctx.lineTo(centerX, y1);
-                        ctx.closePath();
-                    }
-                } else {
-                    // Handle regular line drawings
-                    ctx.moveTo(x0, y0);
-                    ctx.lineTo(x1, y1);
-                }
-
-                ctx.strokeStyle = lineColor;
-                ctx.lineWidth = size;
-                ctx.stroke();
+            newSocket = io("http://localhost:5000", {
+                auth: {
+                    token: session.access_token // Send JWT to backend
+                },
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                transports: ['websocket', 'polling']
             });
-        });
 
-        setSocket(newSocket);
+            newSocket.on("connect_error", (err) => {
+                console.error("Connection error:", err);
+                setConnectionError("Failed to connect to server");
+            });
+
+            newSocket.on("connect", () => {
+                setConnectionError(null);
+                console.log("Connected to server");
+            });
+
+            newSocket.on("initialData", (data) => {
+                const ctx = ctxRef.current;
+                if (!ctx) return;
+
+                clearCanvas(canvasRef);
+
+                // Safely get drawings
+                const drawingsArray = Array.isArray(data.drawings) ? data.drawings : [];
+                drawingsArray.forEach(({ x0, y0, x1, y1, color: lineColor, size, shape }) => {
+                    ctx.beginPath();
+
+                    if (shape) {
+                        if (shape === 'rectangle') {
+                            ctx.rect(x0, y0, x1 - x0, y1 - y0);
+                        } else if (shape === 'circle') {
+                            const centerX = (x0 + x1) / 2;
+                            const centerY = (y0 + y1) / 2;
+                            const radiusX = Math.abs(x1 - x0) / 2;
+                            const radiusY = Math.abs(y1 - y0) / 2;
+                            ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+                        } else if (shape === 'square') {
+                            const sideLength = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+                            const signX = x1 > x0 ? 1 : -1;
+                            const signY = y1 > y0 ? 1 : -1;
+                            ctx.rect(x0, y0, signX * sideLength, signY * sideLength);
+                        } else if (shape === 'triangle') {
+                            ctx.moveTo(x0, y1);
+                            ctx.lineTo(x1, y1);
+                            ctx.lineTo((x0 + x1) / 2, y0);
+                            ctx.closePath();
+                        } else if (shape === 'star') {
+                            const centerX = (x0 + x1) / 2;
+                            const centerY = (y0 + y1) / 2;
+                            const outerRadius = Math.min(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2;
+                            const innerRadius = outerRadius / 2;
+
+                            ctx.moveTo(centerX + outerRadius * Math.cos(0), centerY + outerRadius * Math.sin(0));
+                            for (let i = 0; i < 10; i++) {
+                                const angle = i * Math.PI / 5;
+                                const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                                ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
+                            }
+                            ctx.closePath();
+                        } else if (shape === 'pentagon') {
+                            const centerX = (x0 + x1) / 2;
+                            const centerY = (y0 + y1) / 2;
+                            const radius = Math.min(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2;
+
+                            ctx.moveTo(centerX + radius * Math.cos(0), centerY + radius * Math.sin(0));
+                            for (let i = 1; i <= 5; i++) {
+                                const angle = i * 2 * Math.PI / 5;
+                                ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
+                            }
+                            ctx.closePath();
+                        } else if (shape === 'hexagon') {
+                            const centerX = (x0 + x1) / 2;
+                            const centerY = (y0 + y1) / 2;
+                            const radius = Math.min(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2;
+
+                            ctx.moveTo(centerX + radius * Math.cos(0), centerY + radius * Math.sin(0));
+                            for (let i = 1; i <= 6; i++) {
+                                const angle = i * 2 * Math.PI / 6;
+                                ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
+                            }
+                            ctx.closePath();
+                        } else if (shape === 'arrowUp') {
+                            const centerX = (x0 + x1) / 2;
+                            const centerY = (y0 + y1) / 2;
+                            const width = Math.abs(x1 - x0);
+                            ctx.moveTo(centerX, y0);
+                            ctx.lineTo(x0, centerY);
+                            ctx.lineTo(centerX - width * 0.1, centerY);
+                            ctx.lineTo(centerX - width * 0.1, y1);
+                            ctx.lineTo(centerX + width * 0.1, y1);
+                            ctx.lineTo(centerX + width * 0.1, centerY);
+                            ctx.lineTo(x1, centerY);
+                            ctx.closePath();
+
+                        } else if (shape === 'arrowDown') {
+                            const centerX = (x0 + x1) / 2;
+                            const centerY = (y0 + y1) / 2;
+                            const width = Math.abs(x1 - x0);
+                            ctx.moveTo(centerX, y1);
+                            ctx.lineTo(x0, centerY);
+                            ctx.lineTo(centerX - width * 0.1, centerY);
+                            ctx.lineTo(centerX - width * 0.1, y0);
+                            ctx.lineTo(centerX + width * 0.1, y0);
+                            ctx.lineTo(centerX + width * 0.1, centerY);
+                            ctx.lineTo(x1, centerY);
+                            ctx.closePath();
+
+                        } else if (shape === 'arrowLeft') {
+                            const centerX = (x0 + x1) / 2;
+                            const centerY = (y0 + y1) / 2;
+                            const height = Math.abs(y1 - y0);
+                            ctx.moveTo(x0, centerY);
+                            ctx.lineTo(centerX, y0);
+                            ctx.lineTo(centerX, centerY - height * 0.1);
+                            ctx.lineTo(x1, centerY - height * 0.1);
+                            ctx.lineTo(x1, centerY + height * 0.1);
+                            ctx.lineTo(centerX, centerY + height * 0.1);
+                            ctx.lineTo(centerX, y1);
+                            ctx.closePath();
+
+                        } else if (shape === 'arrowRight') {
+                            const centerX = (x0 + x1) / 2;
+                            const centerY = (y0 + y1) / 2;
+                            const height = Math.abs(y1 - y0);
+                            ctx.moveTo(x1, centerY);
+                            ctx.lineTo(centerX, y0);
+                            ctx.lineTo(centerX, centerY - height * 0.1);
+                            ctx.lineTo(x0, centerY - height * 0.1);
+                            ctx.lineTo(x0, centerY + height * 0.1);
+                            ctx.lineTo(centerX, centerY + height * 0.1);
+                            ctx.lineTo(centerX, y1);
+                            ctx.closePath();
+                        }
+                    } else {
+                        // Handle regular line drawings
+                        ctx.moveTo(x0, y0);
+                        ctx.lineTo(x1, y1);
+                    }
+
+                    ctx.strokeStyle = lineColor;
+                    ctx.lineWidth = size;
+                    ctx.stroke();
+                });
+            });
+
+
+
+            setSocket(newSocket);
+        }
+
+        setupSocket();
 
         return () => {
-            newSocket.disconnect();
+            if (newSocket) {
+                newSocket.disconnect();
+            }
         };
     }, []);
 

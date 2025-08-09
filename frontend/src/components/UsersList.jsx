@@ -4,6 +4,7 @@ function UsersList({ socket, roomId }) {
     const [open, setOpen] = useState(false);
     const [users, setUsers] = useState([]);
     const [toasts, setToasts] = useState([]);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     const toggleDrawer = () => {
         setOpen(!open);
@@ -22,13 +23,15 @@ function UsersList({ socket, roomId }) {
     useEffect(() => {
         if (!socket) return;
 
-        const handleUserJoined = ({ userId, users: updatedUsers, username }) => {
+        const handleUserJoined = ({ userId, users: updatedUsers, username, adminId }) => {
             setUsers(updatedUsers);
+            setIsAdmin(userId === adminId); // <-- set admin status
             addToast(`${username} joined the room`);
         };
 
-        const handleUserLeft = ({ userId, users: updatedUsers, username }) => {
+        const handleUserLeft = ({ userId, users: updatedUsers, username, adminId }) => {
             setUsers(updatedUsers);
+            setIsAdmin(userId === adminId); // <-- update admin status if changed
             addToast(`${username} left the room`);
         };
 
@@ -40,6 +43,8 @@ function UsersList({ socket, roomId }) {
             socket.off('userLeft', handleUserLeft);
         };
     }, [socket]);
+
+    
 
     return (
         <>
@@ -63,6 +68,7 @@ function UsersList({ socket, roomId }) {
                         animation: 'fadeIn 0.3s ease'
                     }}>
                         {toast.message}
+                        {isAdmin && <h4>Welocome Admin!!</h4>}
                     </div>
                 ))}
             </div>
@@ -129,9 +135,9 @@ function UsersList({ socket, roomId }) {
                     Users in Room ({users.length})
                 </div>
                 <div style={{ overflow: 'auto' }}>
-                    {users.map((userId, index) => (
+                    {users.map((user, index) => (
                         <div
-                            key={userId}
+                            key={user.userId}
                             style={{
                                 padding: '8px 16px',
                                 fontFamily: 'serif',
@@ -139,7 +145,7 @@ function UsersList({ socket, roomId }) {
                                 borderBottom: '1px solid #f3f3f3'
                             }}
                         >
-                            User {index + 1} : {users[index]}
+                            User {index + 1}: {user.username || 'Anonymous'}
                         </div>
                     ))}
                 </div>

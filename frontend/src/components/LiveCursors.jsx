@@ -81,7 +81,7 @@ function LiveCursors({ socket, roomId }) {
                 .filter(([userId]) => userId !== currentUserId) // Filter out current user
                 .map(([userId, { x, y, username }]) => (
                 <div 
-                    key={userId}
+                    key={JSON.stringify(userId)}
                     style={{
                         position: 'absolute',
                         left: `${x}px`,
@@ -112,7 +112,8 @@ function LiveCursors({ socket, roomId }) {
                             fontFamily: 'serif',
                             whiteSpace: 'nowrap'
                         }}>
-                            {username} {userId}
+                            {username} 
+                            {/* {JSON.stringify(userId)} */}
                         </div>
                     )}
                 </div>

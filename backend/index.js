@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { Room } from './model/Room.model.js';
 import { createRoomRouter } from './routes/room.routes.js';
+import { socketAuthMiddleware } from './auth/socketAuthMiddleware.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -29,149 +30,200 @@ mongoose.connect(process.env.MONGO)
 
 const connectedUsers = new Map();
 
+io.use(socketAuthMiddleware);
 
+// --- Add near top of file (where you declare maps) ---
+const connectedSockets = new Map(); // socketId -> { userId, username, connectedAt }
+const userToSockets = new Map();    // userId -> Set(socketId)
+
+// --- Then replace your io.on('connection') with the block below ---
 io.on('connection', (socket) => {
-  // Add user to connected users map
-  connectedUsers.set(socket.id, { id: socket.id, timestamp: Date.now() });
+  const userId = socket.user?.id;
+  const email = socket.user?.email || '';
+  const username = email ? email.split('@')[0] : (userId || socket.id).slice(0, 6);
 
+  // 1) Track this socket
+  connectedSockets.set(socket.id, { userId, username, connectedAt: Date.now() });
+  if (!userToSockets.has(userId)) userToSockets.set(userId, new Set());
+  userToSockets.get(userId).add(socket.id);
+
+  // helper to find the first real room this socket has joined (not the socket id)
+  const getRoomIdFromSocket = (s) => {
+    for (const r of s.rooms) {
+      if (r !== s.id) return r;
+    }
+    return null;
+  };
+
+  // helper: compute connected users currently present in a room (returns array of { userId, username })
+  const getConnectedUsersInRoom = (room) => {
+    return room.users
+      .filter(u => {
+        const s = userToSockets.get(u.userId);
+        return s && s.size > 0;
+      })
+      .map(u => ({ userId: u.userId, username: u.username }));
+  };
+
+  // JOIN ROOM
   socket.on('joinRoom', async (roomId) => {
-    socket.join(roomId);
+    try {
+      socket.join(roomId);
 
-    let room = await Room.findOne({ roomId });
-    if (!room) {
-      room = new Room({
-        roomId,
-        users: [],
-        drawings: [],
-        adminId: null // will be set later
-      });
-    }
-
-    const username = `User ${room.users.length + 1}`;
-
-    // Store username in connectedUsers
-    connectedUsers.set(socket.id, {
-      id: socket.id,
-      timestamp: Date.now(),
-      username
-    });
-
-    // Add user to DB if not already present
-    if (!room.users.includes(socket.id)) {
-      room.users.push(socket.id);
-      await room.save();
-    }
-
-    socket.emit('initialData', room.drawings);
-    
-    // Check if adminId is not set AND only 1 user in the room → set this user as admin
-    const connectedUsersInRoom = room.users.filter(userId => connectedUsers.has(userId));
-
-    if (!room.adminId && connectedUsersInRoom.length === 1) {
-      room.adminId = socket.id;
-      console.log(`User ${socket.id} is now admin of room ${roomId}`);
-    }
-
-    await room.save();
-
-    // Send initial drawings to the new user
-    socket.emit('initialData', room.drawings);
-
-    // Notify all users in the room
-    io.to(roomId).emit('userJoined', {
-      userId: socket.id,
-      users: connectedUsersInRoom,
-      username,
-      adminId: room.adminId
-    });
-    
-    console.log(`User ${socket.id} joined room ${roomId}`);
-  });
-
-  socket.on('cursorMove', ({ roomId, x, y }) => {
-      // Get the username from connectedUsers map instead
-      const userData = connectedUsers.get(socket.id);
-      const username = userData?.username || `User ${socket.id.slice(0, 4)}`;
-      
-      socket.to(roomId).emit('cursorMove', { 
-          userId: socket.id, 
-          x, 
-          y,
-          username
-      });
-  });
-  socket.on('draw', async (data) => {
-    const roomId = [...socket.rooms].find(room => room !== socket.id);
-    if (roomId) {
-      // Save drawing to database
-      await Room.updateOne(
-        { roomId },
-        { $push: { drawings: data } }
-      );
-      socket.to(roomId).emit('draw', data);
-    }
-  });
-
-  socket.on('drawShape', async (data) => {
-    const roomId = [...socket.rooms].find(room => room !== socket.id);
-    if (roomId) {
-        // Ensure shape data is included when saving to database
-        await Room.updateOne(
-            { roomId },
-            { $push: { 
-                drawings: {
-                    x0: data.x0,
-                    y0: data.y0,
-                    x1: data.x1,
-                    y1: data.y1,
-                    color: data.color,
-                    size: data.size,
-                    shape: data.shape // Make sure shape is included
-                }
-            } }
-        );
-        socket.to(roomId).emit('drawShape', data);
-    }
-});
-
-  socket.on('clear', async () => {
-    const roomId = [...socket.rooms].find(room => room !== socket.id);
-    if (roomId) {
-        // Clear drawings from database
-        await Room.updateOne(
-            { roomId },
-            { $set: { drawings: [] } }
-        );
-        // Emit to all clients in the room including the sender
-        io.to(roomId).emit('clear');
-    }
-});
-
-  socket.on('disconnect', async () => {
-    console.log('User disconnected:', socket.id);
-    connectedUsers.delete(socket.id);
-    
-    const rooms = await Room.find({ users: socket.id });
-    for (const room of rooms) {
-        // Remove user from room in database
-        await Room.updateOne(
-            { roomId: room.roomId },
-            { $pull: { users: socket.id } }
-        );
-        
-        // Get remaining connected users
-        const remainingUsers = room.users.filter(userId => 
-            userId !== socket.id && connectedUsers.has(userId)
-        );
-        
-        io.to(room.roomId).emit('userLeft', { 
-            userId: socket.id, 
-            users: remainingUsers,
-            username: `User ${remainingUsers.length + 1}`
+      let room = await Room.findOne({ roomId });
+      if (!room) {
+        room = new Room({
+          roomId,
+          users: [],
+          drawings: [],
+          adminId: null
         });
+      }
+
+      // Add user (object) into room.users if not present
+      if (!room.users.some(u => u.userId === userId)) {
+        room.users.push({ userId, username });
+      }
+
+      // Compute connected users in the room (only users who have at least one active socket)
+      const connectedUsersInRoom = getConnectedUsersInRoom(room);
+
+      // Assign admin if none and this is the first connected user
+      if (!room.adminId && connectedUsersInRoom.length === 1) {
+        room.adminId = userId;
+        console.log(`Assigned admin ${userId} for room ${roomId}`);
+      }
+
+      await room.save();
+
+      // Send initial payload to joining socket
+      socket.emit('initialData', { drawings: room.drawings, adminId: room.adminId });
+
+      // Broadcast userJoined with the canonical user IDs and usernames
+      io.to(roomId).emit('userJoined', {
+        userId,
+        users: connectedUsersInRoom,
+        username,
+        adminId: room.adminId
+      });
+
+      console.log(`User ${userId} joined room ${roomId}`);
+    } catch (err) {
+      console.error('joinRoom error', err);
+      socket.emit('errorMsg', 'Could not join room');
     }
+  });
+
+  // CURSOR MOVE
+  socket.on('cursorMove', ({ roomId, x, y }) => {
+    const socketInfo = connectedSockets.get(socket.id);
+    const name = socketInfo?.username || username;
+    socket.to(roomId).emit('cursorMove', {
+      userId,
+      x,
+      y,
+      username: name
+    });
+  });
+
+  // DRAW (line)
+  socket.on('draw', async (data) => {
+    const roomId = getRoomIdFromSocket(socket);
+    if (!roomId) return;
+    try {
+      // attach who created it
+      const doc = { ...data, createdBy: userId };
+      await Room.updateOne({ roomId }, { $push: { drawings: doc } });
+      socket.to(roomId).emit('draw', doc);
+    } catch (err) {
+      console.error('draw error', err);
+    }
+  });
+
+  // DRAW SHAPE
+  socket.on('drawShape', async (data) => {
+    const roomId = getRoomIdFromSocket(socket);
+    if (!roomId) return;
+    try {
+      const doc = {
+        x0: data.x0,
+        y0: data.y0,
+        x1: data.x1,
+        y1: data.y1,
+        color: data.color,
+        size: data.size,
+        shape: data.shape,
+        createdBy: userId
+      };
+      await Room.updateOne({ roomId }, { $push: { drawings: doc } });
+      socket.to(roomId).emit('drawShape', doc);
+    } catch (err) {
+      console.error('drawShape error', err);
+    }
+  });
+
+  // CLEAR (anyone can clear — if you want admin-only, check room.adminId === userId)
+  socket.on('clear', async () => {
+    const roomId = getRoomIdFromSocket(socket);
+    if (!roomId) return;
+    try {
+      await Room.updateOne({ roomId }, { $set: { drawings: [] } });
+      io.to(roomId).emit('clear');
+    } catch (err) {
+      console.error('clear error', err);
+    }
+  });
+
+  // DISCONNECT
+  socket.on('disconnect', async () => {
+    try {
+      console.log(`Socket disconnected: socketId=${socket.id} userId=${userId}`);
+
+      // remove this socket
+      connectedSockets.delete(socket.id);
+      const socketsSet = userToSockets.get(userId);
+      if (socketsSet) {
+        socketsSet.delete(socket.id);
+        if (socketsSet.size === 0) {
+          userToSockets.delete(userId);
+        }
+      }
+
+      // Only if user has NO remaining sockets do we remove them from rooms
+      const stillConnected = userToSockets.has(userId); // true if user still has other sockets
+      if (!stillConnected) {
+        // find rooms where this user is a member
+        const rooms = await Room.find({ 'users.userId': userId });
+        for (const room of rooms) {
+          // remove user object from room.users
+          room.users = room.users.filter(u => u.userId !== userId);
+
+          // recompute connected users in that room (users with active sockets)
+          const connectedUsersInRoom = getConnectedUsersInRoom(room);
+
+          // if they were admin, transfer admin to first connected user or null
+          if (room.adminId === userId) {
+            room.adminId = connectedUsersInRoom.length > 0 ? connectedUsersInRoom[0].userId : null;
+            console.log(`Transferred admin in ${room.roomId} to ${room.adminId}`);
+          }
+
+          await room.save();
+
+          io.to(room.roomId).emit('userLeft', {
+            userId,
+            users: connectedUsersInRoom,
+            username
+          });
+        }
+      } else {
+        // user still has other sockets — optional: you could emit presence update if needed
+      }
+    } catch (err) {
+      console.error('disconnect handler error', err);
+    }
+  });
 });
-});
+
 
 const PORT = 5000;
 

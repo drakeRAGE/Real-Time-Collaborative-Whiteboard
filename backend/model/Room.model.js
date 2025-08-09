@@ -1,9 +1,13 @@
 import mongoose from "mongoose";
 
-// Define schemas
 const roomSchema = new mongoose.Schema({
-  roomId: String,
-  users: [String],
+  roomId: { type: String, required: true, unique: true },
+  users: [
+    {
+      userId: { type: String, required: true },     // Supabase UUID
+      username: { type: String }
+    }
+  ],
   drawings: [{
     x0: Number,
     y0: Number,
@@ -11,9 +15,10 @@ const roomSchema = new mongoose.Schema({
     y1: Number,
     color: String,
     size: Number,
-    shape: String // Add shape type
+    shape: String,
+    createdBy: String   // Supabase user ID of the drawer
   }],
-  adminId: { type: String, default: "NA" } // store admin's socket ID
+  adminId: { type: String, default: null } // Supabase UUID
 });
 
 export const Room = mongoose.model('Room', roomSchema);
