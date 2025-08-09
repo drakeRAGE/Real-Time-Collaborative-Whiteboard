@@ -12,7 +12,8 @@ const roomSchema = new mongoose.Schema({
     color: String,
     size: Number,
     shape: String // Add shape type
-  }]
+  }],
+  adminId: { type: String, default: "NA" } // store admin's socket ID
 });
 
 export const Room = mongoose.model('Room', roomSchema);

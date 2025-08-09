@@ -36,42 +36,57 @@ io.on('connection', (socket) => {
 
   socket.on('joinRoom', async (roomId) => {
     socket.join(roomId);
-    
+
     let room = await Room.findOne({ roomId });
     if (!room) {
-        room = new Room({ 
-            roomId,
-            users: [],
-            drawings: []
-        });
+      room = new Room({
+        roomId,
+        users: [],
+        drawings: [],
+        adminId: null // will be set later
+      });
     }
 
     const username = `User ${room.users.length + 1}`;
-    
+
     // Store username in connectedUsers
-    connectedUsers.set(socket.id, { 
-        id: socket.id, 
-        timestamp: Date.now(),
-        username 
+    connectedUsers.set(socket.id, {
+      id: socket.id,
+      timestamp: Date.now(),
+      username
     });
-    
+
+    // Add user to DB if not already present
     if (!room.users.includes(socket.id)) {
-        room.users.push(socket.id);
-        await room.save();
+      room.users.push(socket.id);
+      await room.save();
     }
 
     socket.emit('initialData', room.drawings);
     
+    // Check if adminId is not set AND only 1 user in the room → set this user as admin
     const connectedUsersInRoom = room.users.filter(userId => connectedUsers.has(userId));
-    
-    io.to(roomId).emit('userJoined', { 
-        userId: socket.id, 
-        users: connectedUsersInRoom,
-        username
+
+    if (!room.adminId && connectedUsersInRoom.length === 1) {
+      room.adminId = socket.id;
+      console.log(`User ${socket.id} is now admin of room ${roomId}`);
+    }
+
+    await room.save();
+
+    // Send initial drawings to the new user
+    socket.emit('initialData', room.drawings);
+
+    // Notify all users in the room
+    io.to(roomId).emit('userJoined', {
+      userId: socket.id,
+      users: connectedUsersInRoom,
+      username,
+      adminId: room.adminId
     });
     
     console.log(`User ${socket.id} joined room ${roomId}`);
-});
+  });
 
   socket.on('cursorMove', ({ roomId, x, y }) => {
       // Get the username from connectedUsers map instead
