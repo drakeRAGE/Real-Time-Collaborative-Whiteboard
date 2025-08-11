@@ -12,7 +12,6 @@ export const socketAuthMiddleware = (socket, next) => {
             email: user.email
         };
 
-        console.log('Authenticated user from middleware:', socket.user);
         next();
     } catch (err) {
         next(new Error('Authentication error: ' + err.message));

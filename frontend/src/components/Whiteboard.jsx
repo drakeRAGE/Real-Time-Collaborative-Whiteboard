@@ -15,7 +15,6 @@ import { MdDelete } from "react-icons/md";
 import { GrClear } from "react-icons/gr";
 import { BsEraserFill } from "react-icons/bs";
 import { supabase } from "../utils/supabase";
-import { initializeSocket } from "../utils/socket";
 import { useAuth } from "../context/AuthContext";
 
 function Whiteboard() {
@@ -34,6 +33,7 @@ function Whiteboard() {
     const navigate = useNavigate();
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isEraserActive, setIsEraserActive] = useState(false);
+    const [undo, setUndo] = useState(false);
 
     const handleClearBoard = () => {
         if (!socket) return;
@@ -248,6 +248,7 @@ function Whiteboard() {
         return () => {
             socket.off("draw");
             socket.off("clear");
+            socket.off("joinRoom");
         };
     }, [socket, roomId]);
 
@@ -543,6 +544,8 @@ function Whiteboard() {
                         style={{ color: isEraserActive ? '#4f46e5' : '#6b7280', fontSize: '1.25rem' }}
                     />
                 </button>
+                <button onClick={() => socket.emit('undo', roomId)}>Undo</button>
+                <button onClick={() => socket.emit('redo', roomId)}>Redo</button>
             </div>
 
             <div style={{ flexGrow: 1, position: "relative" }}>

@@ -13,6 +13,8 @@ import { User } from './model/User.model.js';
 
 // in-memory cache for quick lookups during runtime
 const userCache = new Map(); // Map<userId, userObj>
+// runtime redo stacks (roomId -> Array<drawing>)
+const redoStacks = new Map(); // Map<roomId, Array<doc>>
 
 const app = express();
 const server = http.createServer(app);
@@ -159,7 +161,13 @@ io.on('connection', async (socket) => {
     try {
       // attach who created it
       const doc = { ...data, createdBy: userId };
+      // push into DB
       await Room.updateOne({ roomId }, { $push: { drawings: doc } });
+
+      // clear redo stack because new action invalidates redo history
+      redoStacks.delete(roomId);
+
+      // broadcast to other clients
       socket.to(roomId).emit('draw', doc);
     } catch (err) {
       console.error('draw error', err);
@@ -182,6 +190,10 @@ io.on('connection', async (socket) => {
         createdBy: userId
       };
       await Room.updateOne({ roomId }, { $push: { drawings: doc } });
+
+      // new action -> clear redo
+      redoStacks.delete(roomId);
+
       socket.to(roomId).emit('drawShape', doc);
     } catch (err) {
       console.error('drawShape error', err);
@@ -194,9 +206,94 @@ io.on('connection', async (socket) => {
     if (!roomId) return;
     try {
       await Room.updateOne({ roomId }, { $set: { drawings: [] } });
+
+      // clearing board invalidates redo history
+      redoStacks.delete(roomId);
+
       io.to(roomId).emit('clear');
     } catch (err) {
       console.error('clear error', err);
+    }
+  });
+
+  // UNDO (only admin allowed)
+  socket.on('undo', async (roomId) => {
+
+    console.log("undoing");
+
+    if (!roomId) return;
+    try {
+      const room = await Room.findOne({ roomId });
+      if (!room) return socket.emit('errorMsg', 'Room not found');
+
+      if (room.adminId !== userId) {
+        return socket.emit('errorMsg', 'Only the room admin can undo');
+      }
+
+      // server-side admin check (authoritative)
+      if (room.adminId !== userId) {
+        return socket.emit('errorMsg', 'Only the room admin can undo');
+      }
+
+      const drawings = room.drawings || [];
+      if (drawings.length === 0) {
+        return socket.emit('errorMsg', 'Nothing to undo');
+      }
+
+      // pop last drawing
+      const last = drawings.pop();
+
+      // save back to DB
+      room.drawings = drawings;
+      await room.save();
+
+      // push popped drawing into redo stack
+      const stack = redoStacks.get(roomId) || [];
+      stack.push(last);
+      redoStacks.set(roomId, stack);
+
+      // notify everyone in room
+      io.to(roomId).emit('undo', { removed: last, drawings });
+    } catch (err) {
+      console.error('undo error', err);
+      socket.emit('errorMsg', 'Undo failed');
+    }
+  });
+
+  // REDO (only admin allowed)
+  socket.on('redo', async (roomId) => {
+    if (!roomId) return;
+    try {
+      const room = await Room.findOne({ roomId });
+      if (!room) return socket.emit('errorMsg', 'Room not found');
+
+      if (room.adminId !== userId) {
+        return socket.emit('errorMsg', 'Only the room admin can undo');
+      }
+
+      if (room.adminId !== userId) {
+        return socket.emit('errorMsg', 'Only the room admin can redo');
+      }
+
+      const stack = redoStacks.get(roomId) || [];
+      if (stack.length === 0) {
+        return socket.emit('errorMsg', 'Nothing to redo');
+      }
+
+      const doc = stack.pop();
+
+      // append back into drawings and save
+      room.drawings = room.drawings || [];
+      room.drawings.push(doc);
+      await room.save();
+
+      // persist modified stack
+      redoStacks.set(roomId, stack);
+
+      io.to(roomId).emit('redo', { added: doc, drawings: room.drawings });
+    } catch (err) {
+      console.error('redo error', err);
+      socket.emit('errorMsg', 'Redo failed');
     }
   });
 
