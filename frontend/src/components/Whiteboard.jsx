@@ -535,86 +535,141 @@ function Whiteboard() {
     };
 
     return (
-        <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-            <header style={{ padding: "1.5rem", textAlign: "center", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "white", fontSize: "2rem", fontWeight: "600", fontFamily: "'Inter', sans-serif", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}>
+        <div className="h-screen flex flex-col text-white">
+            {/* Header */}
+            <header className="p-6 text-center bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 shadow-md text-2xl font-bold font-inter tracking-wide">
                 Collaborative Whiteboard
             </header>
 
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "1.5rem", padding: "1rem", background: "white", boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)", marginBottom: "1rem" }}>
-                <ShapeSelector selectedShape={selectedShape} setSelectedShape={setSelectedShape} isEraserActive={isEraserActive} />
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <input
-                        type="color"
-                        value={color}
-                        onChange={(e) => {
-                            // if ther eraser is active and user selects color other than white then disable the eraser
-                            if (isEraserActive && e.target.value !== "#ffffff") {
-                                setIsEraserActive(false);
-                            }
-                            setColor(e.target.value);
-                        }}
-                        style={{
-                            width: "52px",
-                            height: "52px",
-                        }}
-                    />
+            {/* Toolbar */}
+            <div className="flex flex-wrap items-center justify-center gap-4 p-4 shadow-inner">
+                <ShapeSelector
+                    selectedShape={selectedShape}
+                    setSelectedShape={setSelectedShape}
+                    isEraserActive={isEraserActive}
+                />
+
+                {/* Color Picker */}
+                <div className="flex items-center">
+                    <label className="relative">
+                        <input
+                            type="color"
+                            value={color}
+                            onChange={(e) => {
+                                if (isEraserActive && e.target.value !== "#ffffff") {
+                                    setIsEraserActive(false);
+                                }
+                                setColor(e.target.value);
+                            }}
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                        />
+                        <div
+                            className="w-12 h-12 rounded-full border border-gray-300 shadow-md transition-transform duration-200 hover:scale-105 hover:shadow-lg"
+                            style={{ backgroundColor: color }}
+                            title="Choose a color"
+                        />
+                    </label>
                 </div>
+
+
                 <BrushSizeSelector brushSize={brushSize} setBrushSize={setBrushSize} />
 
+                {/* Clear Board */}
                 <GrClear
                     onClick={() => setShowClearModal(true)}
-                    style={{ fontSize: '1.75rem', cursor: 'pointer', transition: 'all 0.2s', '&:hover': { background: '#e2e8f0' } }}
+                    className="text-2xl cursor-pointer text-gray-300 hover:text-indigo-400 transition"
                     title="Clear Board"
                 />
+
+                {/* Delete Room */}
                 <MdDelete
                     onClick={() => setShowDeleteModal(true)}
-                    style={{ fontSize: '2rem', cursor: 'pointer', color: '#ef4444', transition: 'all 0.2s', '&:hover': { background: '#fee2e2' } }}
+                    className="text-3xl cursor-pointer text-red-500 hover:text-red-400 transition"
                     title="Delete Room"
                 />
+
+                {/* Eraser */}
                 <button
-                    className={`tool-button ${isEraserActive ? 'active' : ''}`}
+                    className={`p-2 rounded-lg border transition flex items-center justify-center ${isEraserActive
+                            ? "bg-indigo-100 border-indigo-500"
+                            : "bg-transparent border-gray-600"
+                        }`}
                     title="Erase"
                     onClick={toggleEraser}
-                    style={{ background: isEraserActive ? '#e0e7ff' : 'transparent', border: isEraserActive ? '2px solid #4f46e5' : '1px solid #e5e7eb', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s ease-in-out' }}
                 >
                     <BsEraserFill
-                        style={{ color: isEraserActive ? '#4f46e5' : '#6b7280', fontSize: '1.25rem' }}
+                        className={`text-lg ${isEraserActive ? "text-indigo-600" : "text-gray-400"
+                            }`}
                     />
                 </button>
+
+                {/* Undo */}
                 <button
                     onClick={() => socket.emit("undo", roomId)}
                     disabled={!isAdmin}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-md transition
-                        ${isAdmin ? "bg-blue-500 hover:bg-blue-600 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
+                    className={`flex items-center justify-center gap-2 px-4 py-2 rounded-full font-medium transition-all duration-200
+    ${isAdmin
+                            ? "bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md hover:scale-105"
+                            : "bg-gray-700 text-gray-400 cursor-not-allowed opacity-70"
+                        }`}
                 >
-                    <FaUndo /> Undo
+                    <FaUndo className="text-lg" />
+                    <span className="hidden sm:inline">Undo</span>
                 </button>
 
+                {/* Redo */}
                 <button
                     onClick={() => socket.emit("redo", roomId)}
                     disabled={!isAdmin}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-md transition
-                        ${isAdmin ? "bg-green-500 hover:bg-green-600 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
+                    className={`flex items-center justify-center gap-2 px-4 py-2 rounded-full font-medium transition-all duration-200
+    ${isAdmin
+                            ? "bg-green-500 hover:bg-green-600 text-white shadow-sm hover:shadow-md hover:scale-105"
+                            : "bg-gray-700 text-gray-400 cursor-not-allowed opacity-70"
+                        }`}
                 >
-                    <FaRedo /> Redo
+                    <FaRedo className="text-lg" />
+                    <span className="hidden sm:inline">Redo</span>
                 </button>
             </div>
 
-            <div style={{ flexGrow: 1, position: "relative" }}>
+            {/* Canvas Area */}
+            <div className="flex-grow relative">
                 <canvas
                     ref={canvasRef}
                     onMouseDown={startDrawing}
                     onMouseUp={endDrawing}
                     onMouseOut={endDrawing}
                     onMouseMove={draw}
-                    style={{ display: "block", width: "100%", height: "100%", cursor: isEraserActive ? `url('/eraser.png'), auto` : "crosshair" }}
+                    className={`block w-full h-full ${isEraserActive
+                            ? "cursor-[url('/eraser.png'),_auto]"
+                            : "cursor-crosshair"
+                        }`}
                 />
                 <LiveCursors socket={socket} roomId={roomId} />
                 <UsersList socket={socket} roomId={roomId} />
             </div>
 
-            {showDeleteModal && <Modal handleClick={handleDeleteRoom} setShowModal={setShowDeleteModal} name={"Delete"} message={"Are you sure you want to delete this room? This action cannot be undone."} />}
-            {showClearModal && <Modal handleClick={handleClearBoard} setShowModal={setShowClearModal} name={"Clear"} message={"Are you sure you want to clear the canvas? This action cannot be undo."} />}
+            {/* Modals */}
+            {showDeleteModal && (
+                <Modal
+                    handleClick={handleDeleteRoom}
+                    setShowModal={setShowDeleteModal}
+                    name={"Delete"}
+                    message={
+                        "Are you sure you want to delete this room? This action cannot be undone."
+                    }
+                />
+            )}
+            {showClearModal && (
+                <Modal
+                    handleClick={handleClearBoard}
+                    setShowModal={setShowClearModal}
+                    name={"Clear"}
+                    message={
+                        "Are you sure you want to clear the canvas? This action cannot be undone."
+                    }
+                />
+            )}
             <CopyUrl />
         </div>
     );

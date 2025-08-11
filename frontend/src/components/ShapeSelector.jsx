@@ -36,21 +36,17 @@ function ShapeSelector({ selectedShape, setSelectedShape, isEraserActive }) {
 
     return (
         <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <div className="flex items-center gap-2 flex-wrap">
                 {shapeOptions.map(({ label, shape, icon }) => {
-                    const isSelected = selectedShape === shape;
+                    const isSelected = selectedShape === shape || (shape === null && !selectedShape);
                     return (
                         <button
                             key={label}
                             onClick={() => handleShapeClick(shape)}
-                            style={{
-                                background: isSelected || (shape === null && !selectedShape) ? '#9866ce' : 'transparent',
-                                color: isSelected || (shape === null && !selectedShape) ? 'white' : '#9866ce',
-                                border: '2px solid #9866ce',
-                                borderRadius: '4px',
-                                padding: '8px',
-                                cursor: 'pointer'
-                            }}
+                            className={`p-2 rounded-lg border transition ${isSelected
+                                    ? "bg-indigo-500 text-white border-indigo-500"
+                                    : "bg-transparent text-indigo-400 border-indigo-400 hover:bg-indigo-100 hover:text-indigo-600"
+                                }`}
                             title={label}
                         >
                             {icon}
@@ -60,37 +56,12 @@ function ShapeSelector({ selectedShape, setSelectedShape, isEraserActive }) {
             </div>
 
             {showEraserToast && (
-                <div style={toastStyle('#fffbe6', '#d48806', '#ffe58f')}>
-                    <span>🧽 Eraser is active. Please deactivate it to select a shape.</span>
+                <div className="fixed top-5 left-1/2 -translate-x-1/2 bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg shadow-lg border border-yellow-300 z-50 text-sm">
+                    🧽 Eraser is active. Please deactivate it to select a shape.
                 </div>
             )}
         </>
     );
-}
-
-// Reusable toast style
-function toastStyle(bgColor, textColor, borderColor) {
-    return {
-        position: 'fixed',
-        top: '20px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        backgroundColor: bgColor,
-        color: textColor,
-        padding: '10px 16px',
-        border: `1px solid ${borderColor}`,
-        borderRadius: '10px',
-        boxShadow: '0 8px 20px rgba(0,0,0,0.15)',
-        fontWeight: 500,
-        zIndex: 10000,
-        fontFamily: 'system-ui, sans-serif',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        minWidth: '300px',
-        maxWidth: '90%',
-        animation: 'fadeIn 0.3s ease-in-out'
-    };
 }
 
 export default ShapeSelector;

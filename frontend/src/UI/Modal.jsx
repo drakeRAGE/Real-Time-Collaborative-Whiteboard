@@ -21,8 +21,8 @@ const Modal = ({ handleClick, setShowModal, name, message }) => {
                     borderRadius: '8px',
                     maxWidth: '400px'
                 }}>
-                    <h2 style={{ marginBottom: '1rem' }}>{name}</h2>
-                    <p>{message}</p>
+                    <h2 style={{ marginBottom: '1rem', color: 'black' }}>{name}</h2>
+                    <p className='text-black'>{message}</p>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
                         <button
                             onClick={() => setShowModal(false)}

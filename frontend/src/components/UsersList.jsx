@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { FaUsers } from "react-icons/fa";
 
 function UsersList({ socket, roomId }) {
     const [open, setOpen] = useState(false);
@@ -46,122 +47,114 @@ function UsersList({ socket, roomId }) {
         };
     }, [socket]);
 
-    
+    const getInitial = (name) =>
+        name?.trim() ? name.charAt(0).toUpperCase() : "?";
+
+    const getMutedColor = (name) => {
+        const colors = [
+            "#CBD5E1", // slate-300
+            "#E2E8F0", // gray-200
+            "#D1D5DB", // gray-300
+            "#F3F4F6", // gray-100
+            "#E5E7EB", // gray-200
+        ];
+        let sum = 0;
+        for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i);
+        return colors[sum % colors.length];
+    };
 
     return (
         <>
-            {/* Toast container */}
-            <div style={{
-                position: 'fixed',
-                top: '20px',
-                right: '20px',
-                zIndex: 1300,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '10px'
-            }}>
-                {toasts.map(toast => (
-                    <div key={toast.id} style={{
-                        padding: '12px 16px',
-                        background: '#9866ce',
-                        color: 'white',
-                        borderRadius: '4px',
-                        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-                        animation: 'fadeIn 0.3s ease'
-                    }}>
+            {/* Toasts */}
+            <div className="fixed top-20 right-20 z-[9999] flex flex-col gap-2">
+                {toasts.map((toast) => (
+                    <div
+                        key={toast.id}
+                        className="px-3 py-2 rounded-md shadow-sm bg-white border border-gray-200 text-gray-800 text-sm animate-fade-in"
+                    >
                         {toast.message}
-                        {isAdmin && <h4>Welocome Admin!!</h4>}
+                        {isAdmin && (
+                            <span className="block text-xs text-gray-500 mt-1">
+                                Welcome Admin
+                            </span>
+                        )}
                     </div>
                 ))}
             </div>
 
-            {/* Existing toggle button and user list */}
+            {/* Floating Toggle Button */}
             <button
                 onClick={toggleDrawer}
-                style={{
-                    position: 'fixed',
-                    right: '16px',
-                    top: '16px',
-                    zIndex: 1200,
-                    backgroundColor: '#9866ce',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: '40px',
-                    height: '40px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                }}
+                className="fixed top-19 right-5 z-[9998] w-11 h-11 flex items-center justify-center rounded-full bg-white border border-gray-300 text-gray-600 shadow-sm hover:bg-gray-50 transition"
             >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                >
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
+                <FaUsers className="text-lg" />
             </button>
 
+            {/* Drawer */}
             <div
-                style={{
-                    position: 'fixed',
-                    top: 0,
-                    right: open ? '0' : '-240px',
-                    width: '240px',
-                    height: '100vh',
-                    background: 'white',
-                    boxShadow: '-2px 0 5px rgba(0,0,0,0.1)',
-                    transition: 'right 0.3s ease',
-                    zIndex: 1000
-                }}
+                className={`fixed top-15 right-0 h-full w-64 bg-white border-l border-gray-200 shadow-xl transform transition-transform duration-300 z-[9997] ${open ? "translate-x-0" : "translate-x-full"
+                    }`}
             >
-                <div style={{
-                    padding: '16px',
-                    fontWeight: 'bold',
-                    color: '#9866ce',
-                    fontFamily: 'serif',
-                    fontSize: '1.2rem',
-                    borderBottom: '1px solid #eee'
-                }}>
-                    Users in Room ({users.length})
+                <div className="p-7 font-medium text-gray-700 border-b border-gray-200">
+                    Users ({users.length})
                 </div>
-                <div style={{ overflow: 'auto' }}>
-                    {users.map((user, index) => (
-                        <div
-                            key={user.userId}
-                            style={{
-                                padding: '8px 16px',
-                                fontFamily: 'serif',
-                                color: '#555',
-                                borderBottom: '1px solid #f3f3f3'
-                            }}
-                        >
-                            User {index + 1}: {user.username || 'Anonymous'}
-                        </div>
-                    ))}
+                <div className="overflow-y-auto max-h-[calc(100%-48px)]">
+                    {users.map((user) => {
+                        const isUserAdmin = isAdmin;
+                        return (
+                            <div
+                                key={user.userId}
+                                className={`flex items-center gap-3 px-4 py-2 border-b border-gray-100 hover:bg-gray-50 transition relative ${isUserAdmin ? "bg-gray-50" : ""
+                                    }`}
+                            >
+                                {/* Accent for admin */}
+                                {isUserAdmin && (
+                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-400 rounded-tr-sm rounded-br-sm" />
+                                )}
+
+                                {/* Avatar */}
+                                <div
+                                    className={`w-9 h-9 flex items-center justify-center rounded-full font-semibold text-gray-700 ${isUserAdmin ? "ring-2 ring-blue-300" : ""
+                                        }`}
+                                    style={{
+                                        backgroundColor: getMutedColor(user.username || "")
+                                    }}
+                                >
+                                    {getInitial(user.username)}
+                                </div>
+
+                                {/* Username */}
+                                <span
+                                    className={`text-sm truncate ${isUserAdmin ? "text-gray-800 font-medium" : "text-gray-700"
+                                        }`}
+                                >
+                                    {user.username || "Anonymous"}
+                                </span>
+
+                                {/* Admin Badge */}
+                                {isUserAdmin && (
+                                    <span className="ml-auto text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 font-medium">
+                                        Admin
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    })}
+
+
                 </div>
             </div>
 
-            {/* Add CSS animation for toasts */}
-            <style>
-                {`
-                    @keyframes fadeIn {
-                        from { opacity: 0; transform: translateY(-10px); }
-                        to { opacity: 1; transform: translateY(0); }
-                    }
-                `}
-            </style>
+            {/* Animations */}
+            <style>{`
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.2s ease-out;
+        }
+      `}</style>
         </>
     );
 }

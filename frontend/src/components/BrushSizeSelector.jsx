@@ -4,31 +4,19 @@ const sizes = [4, 8, 12, 16, 20, 24, 28, 32]; // You can adjust or add more size
 
 function BrushSizeSelector({ brushSize, setBrushSize }) {
     return (
-        <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            fontFamily: 'sans-serif',
-        }}>
-
-            <div style={{
-                display: 'flex',
-                gap: '1rem',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-            }}>
+        <div className="flex flex-col items-start">
+            <div className="flex gap-3 items-center flex-wrap">
                 {sizes.map((size, index) => (
                     <div
                         key={index}
                         onClick={() => setBrushSize(size)}
+                        className={`rounded-full cursor-pointer transition-transform transform hover:scale-110 ${brushSize === size
+                                ? "bg-purple-400 border-2 border-blue-500"
+                                : "bg-gray-300 border-2 border-transparent"
+                            }`}
                         style={{
                             width: size,
                             height: size,
-                            borderRadius: '50%',
-                            backgroundColor: brushSize === size ? '#c084fc' : '#E5e7eb',
-                            border: brushSize === size ? '2px solid #1976d2' : '2px solid transparent',
-                            cursor: 'pointer',
-                            transition: 'transform 0.2s ease',
                         }}
                         title={`Size ${size}`}
                     />

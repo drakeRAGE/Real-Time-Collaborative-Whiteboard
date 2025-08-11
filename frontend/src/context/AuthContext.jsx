@@ -12,6 +12,16 @@ export function AuthProvider({ children }) {
     const [adminId, setAdminId] = useState(null);
     const [isAdmin, setIsAdmin] = useState(false);
 
+    // Centralized logout
+    const logout = async () => {
+        await supabase.auth.signOut();
+        setUserId(null);
+        setEmail(null);
+        setUsers([]);
+        setAdminId(null);
+        setIsAdmin(false);
+    };
+
     useEffect(() => {
         const getUser = async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -47,7 +57,8 @@ export function AuthProvider({ children }) {
             setUsers,
             setAdminId,
             isAdmin, 
-            setIsAdmin
+            setIsAdmin,
+            logout
         }}>
             {children}
         </AuthContext.Provider>

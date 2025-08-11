@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from './utils/supabase';
 import { Auth } from './components/Auth';
 import { initializeSocket } from './utils/socket';
+import Navbar from './components/Navbar';
 
 function ProtectedRoute({ session, children }) {
   if (!session) {
@@ -55,6 +56,7 @@ function App() {
 
   return (
     <Router>
+      <Navbar />
       <Routes>
         {/* Public Route */}
         <Route path="/auth" element={<Auth />} />
