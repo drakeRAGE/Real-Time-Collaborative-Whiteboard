@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { supabase } from '../utils/supabase'
+import { useNavigate } from 'react-router-dom'
 
 export function Auth() {
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const navigate = useNavigate();
 
   const handleSignUp = async (e) => {
     e.preventDefault()
@@ -32,6 +34,8 @@ export function Auth() {
         password,
       })
       if (error) throw error
+
+      navigate('/');
     } catch (error) {
       alert(error.message)
     } finally {

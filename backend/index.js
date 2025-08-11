@@ -38,6 +38,7 @@ const userToSockets = new Map();    // userId -> Set(socketId)
 
 // --- Then replace your io.on('connection') with the block below ---
 io.on('connection', (socket) => {
+  console.log("This is user", socket.user);
   const userId = socket.user?.id;
   const email = socket.user?.email || '';
   const username = email ? email.split('@')[0] : (userId || socket.id).slice(0, 6);

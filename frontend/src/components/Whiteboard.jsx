@@ -16,6 +16,7 @@ import { GrClear } from "react-icons/gr";
 import { BsEraserFill } from "react-icons/bs";
 import { supabase } from "../utils/supabase";
 import { initializeSocket } from "../utils/socket";
+import { useAuth } from "../context/AuthContext";
 
 function Whiteboard() {
     const { roomId } = useParams();
@@ -33,6 +34,8 @@ function Whiteboard() {
     const navigate = useNavigate();
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isEraserActive, setIsEraserActive] = useState(false);
+    const { userId, email } = useAuth();
+    console.log("User : ",userId, email);
 
     const handleClearBoard = () => {
         if (!socket) return;

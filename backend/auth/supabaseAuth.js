@@ -8,7 +8,6 @@ dotenv.config();
  * Returns decoded user object if valid, otherwise throws an error.
  */
 export const verifySupabaseToken = (token) => {
-    console.log('Verifying Supabase token:', token);
     if (!token) throw new Error('No token provided');
 
     try {

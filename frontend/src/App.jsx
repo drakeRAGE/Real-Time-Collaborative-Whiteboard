@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import RoomSelection from './components/RoomSelection';
 import Whiteboard from './components/Whiteboard';
 import OfflineAssistance from './network/OfflineAssistance';
@@ -36,19 +36,28 @@ function App() {
         setSocket(null)
       }
     }
-  }, [session])
-
-  if (!session) {
-    return <Auth />
-  }
+  }, [session]);
 
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<RoomSelection />} />
-        <Route path="/canva/:roomId" element={<Whiteboard />} />
+        {/* If no session, force /auth */}
+        {!session ? (
+          <>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="*" element={<Navigate to="/auth" replace />} />
+          </>
+        ) : (
+          <>
+            <Route path="/" element={<RoomSelection />} />
+            <Route path="/canva/:roomId" element={<Whiteboard />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </>
+        )}
       </Routes>
-      <OfflineAssistance />
+
+      {session && <OfflineAssistance />}
     </Router>
   );
 }
