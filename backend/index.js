@@ -8,6 +8,11 @@ import mongoose from 'mongoose';
 import { Room } from './model/Room.model.js';
 import { createRoomRouter } from './routes/room.routes.js';
 import { socketAuthMiddleware } from './auth/socketAuthMiddleware.js';
+import { loadOrCreateUser } from './controllers/user.controller.js';
+import { User } from './model/User.model.js';
+
+// in-memory cache for quick lookups during runtime
+const userCache = new Map(); // Map<userId, userObj>
 
 const app = express();
 const server = http.createServer(app);
@@ -37,13 +42,30 @@ const connectedSockets = new Map(); // socketId -> { userId, username, connected
 const userToSockets = new Map();    // userId -> Set(socketId)
 
 // --- Then replace your io.on('connection') with the block below ---
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
   console.log("This is user", socket.user);
   const userId = socket.user?.id;
   const email = socket.user?.email || '';
-  const username = email ? email.split('@')[0] : (userId || socket.id).slice(0, 6);
 
-  // 1) Track this socket
+  if (!userId) {
+    console.warn('No userId on socket, disconnecting');
+    socket.disconnect(true);
+    return;
+  }
+
+  // --- LOAD OR CREATE USER INTO CACHE ON FIRST CONNECTION THIS UPTIME ---
+  let userObj = userCache.get(userId);
+  if (!userObj) {
+    // loadOrCreateUser does an indexed DB lookup + upsert if not exists
+    userObj = await loadOrCreateUser({ userId, email });
+    userCache.set(userId, userObj);
+    // optional: log creation vs loaded
+    // console.log('Loaded user from DB into cache', userObj);
+  }
+
+  const username = userObj.username || (email ? email.split('@')[0] : (userId || socket.id).slice(0, 6));
+
+  // Track this socket
   connectedSockets.set(socket.id, { userId, username, connectedAt: Date.now() });
   if (!userToSockets.has(userId)) userToSockets.set(userId, new Set());
   userToSockets.get(userId).add(socket.id);
@@ -63,7 +85,7 @@ io.on('connection', (socket) => {
         const s = userToSockets.get(u.userId);
         return s && s.size > 0;
       })
-      .map(u => ({ userId: u.userId, username: u.username }));
+      .map(u => ({ userId: u.userId, username: u.username || (userCache.get(u.userId)?.username || '') }));
   };
 
   // JOIN ROOM
@@ -71,22 +93,25 @@ io.on('connection', (socket) => {
     try {
       socket.join(roomId);
 
+      // get or create room
       let room = await Room.findOne({ roomId });
       if (!room) {
-        room = new Room({
-          roomId,
-          users: [],
-          drawings: [],
-          adminId: null
-        });
+        room = new Room({ roomId, users: [], drawings: [], adminId: null });
       }
 
-      // Add user (object) into room.users if not present
+      // use username from cache (guaranteed loaded earlier)
+      const cachedUser = userCache.get(userId);
+      const usernameFromCache = cachedUser?.username || (email ? email.split('@')[0] : (userId || socket.id).slice(0, 6));
+
+      // Add user to room.users if not present (store canonical user object)
       if (!room.users.some(u => u.userId === userId)) {
-        room.users.push({ userId, username });
+        room.users.push({ userId, username: usernameFromCache });
+      } else {
+        // ensure username in room.users is up-to-date with cache
+        room.users = room.users.map(u => u.userId === userId ? { ...u, username: usernameFromCache } : u);
       }
 
-      // Compute connected users in the room (only users who have at least one active socket)
+      // Compute connected users (those who have active sockets)
       const connectedUsersInRoom = getConnectedUsersInRoom(room);
 
       // Assign admin if none and this is the first connected user
@@ -97,14 +122,14 @@ io.on('connection', (socket) => {
 
       await room.save();
 
-      // Send initial payload to joining socket
+      // Send initialData only to joining socket (drawings + adminId)
       socket.emit('initialData', { drawings: room.drawings, adminId: room.adminId });
 
-      // Broadcast userJoined with the canonical user IDs and usernames
+      // Broadcast userJoined with canonical connectedUsersInRoom
       io.to(roomId).emit('userJoined', {
         userId,
         users: connectedUsersInRoom,
-        username,
+        username: usernameFromCache,
         adminId: room.adminId
       });
 
