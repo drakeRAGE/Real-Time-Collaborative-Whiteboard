@@ -45,7 +45,6 @@ const userToSockets = new Map();    // userId -> Set(socketId)
 
 // --- Then replace your io.on('connection') with the block below ---
 io.on('connection', async (socket) => {
-  console.log("This is user", socket.user);
   const userId = socket.user?.id;
   const email = socket.user?.email || '';
 
@@ -61,8 +60,6 @@ io.on('connection', async (socket) => {
     // loadOrCreateUser does an indexed DB lookup + upsert if not exists
     userObj = await loadOrCreateUser({ userId, email });
     userCache.set(userId, userObj);
-    // optional: log creation vs loaded
-    // console.log('Loaded user from DB into cache', userObj);
   }
 
   const username = userObj.username || (email ? email.split('@')[0] : (userId || socket.id).slice(0, 6));
@@ -327,7 +324,6 @@ io.on('connection', async (socket) => {
           // if they were admin, transfer admin to first connected user or null
           if (room.adminId === userId) {
             room.adminId = connectedUsersInRoom.length > 0 ? connectedUsersInRoom[0].userId : null;
-            console.log(`Transferred admin in ${room.roomId} to ${room.adminId}`);
           }
 
           await room.save();

@@ -16,6 +16,7 @@ import { GrClear } from "react-icons/gr";
 import { BsEraserFill } from "react-icons/bs";
 import { supabase } from "../utils/supabase";
 import { useAuth } from "../context/AuthContext";
+import { FaRedo, FaUndo } from "react-icons/fa";
 
 function Whiteboard() {
     const { roomId } = useParams();
@@ -34,6 +35,15 @@ function Whiteboard() {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isEraserActive, setIsEraserActive] = useState(false);
     const [undo, setUndo] = useState(false);
+    const { userId,
+        email,
+        users,
+        adminId,
+        setUsers,
+        setAdminId,
+        isAdmin,
+        setIsAdmin } = useAuth();
+    console.log(email, users, adminId, isAdmin);
 
     const handleClearBoard = () => {
         if (!socket) return;
@@ -300,7 +310,7 @@ function Whiteboard() {
             navigate('/');
         });
 
-        socket.on('drawShape', (data) => {
+        const drawShapeHandler = (data) => {
             const ctx = ctxRef.current;
             if (!ctx) return;
 
@@ -418,12 +428,39 @@ function Whiteboard() {
             ctx.strokeStyle = data.color;
             ctx.lineWidth = data.size;
             ctx.stroke();
+        }
+        socket.on('drawShape', drawShapeHandler);
+        socket.on('undo', drawShapeHandler);
+
+        const updateCanvasHandler = (drawings) => {
+            const canvas = canvasRef.current;
+            const ctx = ctxRef.current;
+            if (!canvas || !ctx) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawings.forEach(shape => drawShapeHandler(shape));
+        };
+
+        socket.on('drawShape', drawShapeHandler);
+
+        socket.on('undo', ({ drawings }) => {
+            updateCanvasHandler(drawings);
+        });
+
+        socket.on('redo', ({ drawings }) => {
+            updateCanvasHandler(drawings);
+        });
+
+        socket.on('updateCanvas', (drawings) => {
+            updateCanvasHandler(drawings);
         });
 
         return () => {
-            socket.off('roomDeleted');
             socket.off('drawShape');
-        };
+            socket.off('undo');
+            socket.off('redo');
+            socket.off('updateCanvas');
+        }
     }, [socket, navigate]);
 
 
@@ -544,8 +581,23 @@ function Whiteboard() {
                         style={{ color: isEraserActive ? '#4f46e5' : '#6b7280', fontSize: '1.25rem' }}
                     />
                 </button>
-                <button onClick={() => socket.emit('undo', roomId)}>Undo</button>
-                <button onClick={() => socket.emit('redo', roomId)}>Redo</button>
+                <button
+                    onClick={() => socket.emit("undo", roomId)}
+                    disabled={!isAdmin}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-md transition
+                        ${isAdmin ? "bg-blue-500 hover:bg-blue-600 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
+                >
+                    <FaUndo /> Undo
+                </button>
+
+                <button
+                    onClick={() => socket.emit("redo", roomId)}
+                    disabled={!isAdmin}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-md transition
+                        ${isAdmin ? "bg-green-500 hover:bg-green-600 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
+                >
+                    <FaRedo /> Redo
+                </button>
             </div>
 
             <div style={{ flexGrow: 1, position: "relative" }}>
