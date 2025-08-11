@@ -34,8 +34,6 @@ function Whiteboard() {
     const navigate = useNavigate();
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isEraserActive, setIsEraserActive] = useState(false);
-    const { userId, email } = useAuth();
-    console.log("User : ",userId, email);
 
     const handleClearBoard = () => {
         if (!socket) return;

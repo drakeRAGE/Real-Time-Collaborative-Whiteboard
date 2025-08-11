@@ -7,6 +7,11 @@ export function AuthProvider({ children }) {
     const [userId, setUserId] = useState(null);
     const [email, setEmail] = useState(null);
 
+    // Room state
+    const [users, setUsers] = useState([]);
+    const [adminId, setAdminId] = useState(null);
+    const [isAdmin, setIsAdmin] = useState(false);
+
     useEffect(() => {
         const getUser = async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -34,7 +39,16 @@ export function AuthProvider({ children }) {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ userId, email }}>
+        <AuthContext.Provider value={{
+            userId,
+            email,
+            users,
+            adminId,
+            setUsers,
+            setAdminId,
+            isAdmin, 
+            setIsAdmin
+        }}>
             {children}
         </AuthContext.Provider>
     );

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 
 function UsersList({ socket, roomId }) {
     const [open, setOpen] = useState(false);
-    const [users, setUsers] = useState([]);
     const [toasts, setToasts] = useState([]);
-    const [isAdmin, setIsAdmin] = useState(false);
+    const { users, setUsers, setAdminId, isAdmin, setIsAdmin } = useAuth();
 
     const toggleDrawer = () => {
         setOpen(!open);
@@ -25,13 +25,15 @@ function UsersList({ socket, roomId }) {
 
         const handleUserJoined = ({ userId, users: updatedUsers, username, adminId }) => {
             setUsers(updatedUsers);
-            setIsAdmin(userId === adminId); // <-- set admin status
+            setAdminId(adminId);
+            setIsAdmin(userId === adminId);
             addToast(`${username} joined the room`);
         };
 
         const handleUserLeft = ({ userId, users: updatedUsers, username, adminId }) => {
             setUsers(updatedUsers);
-            setIsAdmin(userId === adminId); // <-- update admin status if changed
+            setAdminId(adminId);
+            setIsAdmin(userId === adminId);
             addToast(`${username} left the room`);
         };
 
