@@ -93,10 +93,11 @@ io.on('connection', async (socket) => {
       socket.join(roomId);
 
       // get or create room
-      let room = await Room.findOne({ roomId });
-      if (!room) {
-        room = new Room({ roomId, users: [], drawings: [], adminId: null });
-      }
+      let room = await Room.findOneAndUpdate(
+        { roomId },
+        { $setOnInsert: { users: [], drawings: [], adminId: null } },
+        { new: true, upsert: true }
+      );
 
       // use username from cache (guaranteed loaded earlier)
       const cachedUser = userCache.get(userId);
@@ -223,10 +224,6 @@ io.on('connection', async (socket) => {
       const room = await Room.findOne({ roomId });
       if (!room) return socket.emit('errorMsg', 'Room not found');
 
-      if (room.adminId !== userId) {
-        return socket.emit('errorMsg', 'Only the room admin can undo');
-      }
-
       // server-side admin check (authoritative)
       if (room.adminId !== userId) {
         return socket.emit('errorMsg', 'Only the room admin can undo');
@@ -266,10 +263,6 @@ io.on('connection', async (socket) => {
 
       if (room.adminId !== userId) {
         return socket.emit('errorMsg', 'Only the room admin can undo');
-      }
-
-      if (room.adminId !== userId) {
-        return socket.emit('errorMsg', 'Only the room admin can redo');
       }
 
       const stack = redoStacks.get(roomId) || [];

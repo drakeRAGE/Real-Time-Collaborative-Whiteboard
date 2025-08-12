@@ -255,10 +255,25 @@ function Whiteboard() {
             clearCanvas(canvasRef);
         });
 
+        const handleKeyDown = (e) => {
+            if (!socket || !roomId) return;
+
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                e.preventDefault();
+                socket.emit('undo', roomId);
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+                e.preventDefault();
+                socket.emit('redo', roomId);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        
         return () => {
             socket.off("draw");
             socket.off("clear");
             socket.off("joinRoom");
+            window.removeEventListener('keydown', handleKeyDown);
         };
     }, [socket, roomId]);
 
@@ -438,7 +453,14 @@ function Whiteboard() {
             if (!canvas || !ctx) return;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawings.forEach(shape => drawShapeHandler(shape));
+            drawings.forEach(drawing => {
+                if (drawing.shape) {
+                    drawShapeHandler(drawing);
+                } else {
+                    // It's a freehand line, so use drawLine
+                    drawLine(drawing.x0, drawing.y0, drawing.x1, drawing.y1, false, drawing.color, drawing.size);
+                }
+            });
         };
 
         socket.on('drawShape', drawShapeHandler);
