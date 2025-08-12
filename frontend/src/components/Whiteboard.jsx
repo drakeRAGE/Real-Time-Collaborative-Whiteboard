@@ -17,6 +17,7 @@ import { BsEraserFill } from "react-icons/bs";
 import { supabase } from "../utils/supabase";
 import { useAuth } from "../context/AuthContext";
 import { FaRedo, FaUndo } from "react-icons/fa";
+import ChatMessage from "./ChatMessage";
 
 function Whiteboard() {
     const { roomId } = useParams();
@@ -268,7 +269,7 @@ function Whiteboard() {
         };
 
         window.addEventListener('keydown', handleKeyDown);
-        
+
         return () => {
             socket.off("draw");
             socket.off("clear");
@@ -547,6 +548,13 @@ function Whiteboard() {
         }
     };
 
+    // Extract clean name from email
+    const getUserName = (email) => {
+        if (!email) return "";
+        const namePart = email.split("@")[0];
+        return namePart.replace(/\.(com|net|org|xyz|io|co)$/i, ""); // strip common extensions if present
+    };
+
     const toggleEraser = () => {
         setIsEraserActive(!isEraserActive);
         if (!isEraserActive) {
@@ -669,6 +677,15 @@ function Whiteboard() {
                 />
                 <LiveCursors socket={socket} roomId={roomId} />
                 <UsersList socket={socket} roomId={roomId} />
+            </div>
+
+            <div style={{ height: 'auto', width: 'auto' }}>
+                <ChatMessage
+                    socket={socket}
+                    roomId={roomId}
+                    userId={userId}
+                    username={getUserName(email)}
+                />
             </div>
 
             {/* Modals */}

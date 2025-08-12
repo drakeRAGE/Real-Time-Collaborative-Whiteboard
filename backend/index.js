@@ -128,6 +128,10 @@ io.on('connection', async (socket) => {
         console.log(`Assigned admin ${userId} for room ${roomId}`);
       }
 
+      // Deduplicate by userId
+      room.users = room.users.filter((user, index, self) =>
+        index === self.findIndex(u => u.userId === user.userId)
+      );
       await room.save();
 
       // Send initialData only to joining socket (drawings + adminId)

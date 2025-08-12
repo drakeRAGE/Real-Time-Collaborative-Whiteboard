@@ -1,24 +1,31 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { FaUsers } from "react-icons/fa";
-import ChatMessage from "./ChatMessage";
 
 function UsersList({ socket, roomId }) {
     const [open, setOpen] = useState(false);
     const [toasts, setToasts] = useState([]);
-    const { userId, email, users, setUsers, setAdminId, isAdmin, setIsAdmin } = useAuth();
+    const { users, setUsers, setAdminId, isAdmin, setIsAdmin } = useAuth();
+    const uniqueUsers = Array.from(new Map(users.map(u => [u.userId, u])).values());
+
+    // Track recent toast messages to prevent duplicates
+    const recentToastMessages = useRef(new Set());
 
     const toggleDrawer = () => {
         setOpen(!open);
     };
 
     const addToast = (message) => {
+        if (recentToastMessages.current.has(message)) return; // ignore duplicate toast
+
+        recentToastMessages.current.add(message);
         const id = Date.now();
         setToasts(prev => [...prev, { id, message }]);
 
-        // Auto remove toast after 3 seconds
+        // Auto remove toast after 3 seconds and remove from recent set
         setTimeout(() => {
             setToasts(prev => prev.filter(toast => toast.id !== id));
+            recentToastMessages.current.delete(message);
         }, 3000);
     };
 
@@ -64,13 +71,6 @@ function UsersList({ socket, roomId }) {
         return colors[sum % colors.length];
     };
 
-    // Extract clean name from email
-    const getUserName = (email) => {
-        if (!email) return "";
-        const namePart = email.split("@")[0];
-        return namePart.replace(/\.(com|net|org|xyz|io|co)$/i, ""); // strip common extensions if present
-    };
-
     return (
         <>
             {/* Toasts */}
@@ -104,10 +104,10 @@ function UsersList({ socket, roomId }) {
                     }`}
             >
                 <div className="p-7 font-medium text-gray-700 border-b border-gray-200">
-                    Users ({users.length})
+                    Users ({uniqueUsers.length})
                 </div>
                 <div className="overflow-y-auto max-h-[calc(100%-48px)]">
-                    {users.map((user) => {
+                    {uniqueUsers.map((user) => {
                         const isUserAdmin = isAdmin;
                         return (
                             <div
@@ -125,7 +125,7 @@ function UsersList({ socket, roomId }) {
                                     className={`w-9 h-9 flex items-center justify-center rounded-full font-semibold text-gray-700 ${isUserAdmin ? "ring-2 ring-blue-300" : ""
                                         }`}
                                     style={{
-                                        backgroundColor: getMutedColor(user.username || "")
+                                        backgroundColor: getMutedColor(user.username || ""),
                                     }}
                                 >
                                     {getInitial(user.username)}
@@ -133,7 +133,9 @@ function UsersList({ socket, roomId }) {
 
                                 {/* Username */}
                                 <span
-                                    className={`text-sm truncate ${isUserAdmin ? "text-gray-800 font-medium" : "text-gray-700"
+                                    className={`text-sm truncate ${isUserAdmin
+                                            ? "text-gray-800 font-medium"
+                                            : "text-gray-700"
                                         }`}
                                 >
                                     {user.username || "Anonymous"}
@@ -148,17 +150,6 @@ function UsersList({ socket, roomId }) {
                             </div>
                         );
                     })}
-
-
-                </div>
-
-                <div style={{ height: 'auto', width: 'auto' }}>
-                    <ChatMessage
-                        socket={socket}
-                        roomId={roomId}
-                        userId={userId}
-                        username={getUserName(email)}
-                    />
                 </div>
             </div>
 
