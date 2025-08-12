@@ -289,11 +289,6 @@ io.on('connection', async (socket) => {
       const room = await Room.findOne({ roomId });
       if (!room) return socket.emit('errorMsg', 'Room not found');
 
-      // server-side admin check (authoritative)
-      if (room.adminId !== userId) {
-        return socket.emit('errorMsg', 'Only the room admin can undo');
-      }
-
       const drawings = room.drawings || [];
       if (drawings.length === 0) {
         return socket.emit('errorMsg', 'Nothing to undo');
@@ -325,10 +320,6 @@ io.on('connection', async (socket) => {
     try {
       const room = await Room.findOne({ roomId });
       if (!room) return socket.emit('errorMsg', 'Room not found');
-
-      if (room.adminId !== userId) {
-        return socket.emit('errorMsg', 'Only the room admin can undo');
-      }
 
       const stack = redoStacks.get(roomId) || [];
       if (stack.length === 0) {

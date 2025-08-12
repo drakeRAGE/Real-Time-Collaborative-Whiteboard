@@ -636,12 +636,7 @@ function Whiteboard() {
                 {/* Undo */}
                 <button
                     onClick={() => socket.emit("undo", roomId)}
-                    disabled={!isAdmin}
-                    className={`flex items-center justify-center gap-2 px-4 py-2 rounded-full font-medium transition-all duration-200
-    ${isAdmin
-                            ? "bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md hover:scale-105"
-                            : "bg-gray-700 text-gray-400 cursor-not-allowed opacity-70"
-                        }`}
+                    className={`flex items-center justify-center gap-2 px-4 py-2 rounded-full font-medium transition-all duration-200 bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md hover:scale-105`}
                 >
                     <FaUndo className="text-lg" />
                     <span className="hidden sm:inline">Undo</span>
@@ -650,12 +645,7 @@ function Whiteboard() {
                 {/* Redo */}
                 <button
                     onClick={() => socket.emit("redo", roomId)}
-                    disabled={!isAdmin}
-                    className={`flex items-center justify-center gap-2 px-4 py-2 rounded-full font-medium transition-all duration-200
-    ${isAdmin
-                            ? "bg-green-500 hover:bg-green-600 text-white shadow-sm hover:shadow-md hover:scale-105"
-                            : "bg-gray-700 text-gray-400 cursor-not-allowed opacity-70"
-                        }`}
+                    className={`flex items-center justify-center gap-2 px-4 py-2 rounded-full font-medium transition-all duration-200 bg-green-500 hover:bg-green-600 text-white shadow-sm hover:shadow-md hover:scale-105`}
                 >
                     <FaRedo className="text-lg" />
                     <span className="hidden sm:inline">Redo</span>
