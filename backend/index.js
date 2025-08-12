@@ -10,6 +10,8 @@ import { createRoomRouter } from './routes/room.routes.js';
 import { socketAuthMiddleware } from './auth/socketAuthMiddleware.js';
 import { loadOrCreateUser } from './controllers/user.controller.js';
 import { User } from './model/User.model.js';
+import rateLimit from 'express-rate-limit';
+import { ChatMessage } from './model/ChatMessage.model.js';
 
 // in-memory cache for quick lookups during runtime
 const userCache = new Map(); // Map<userId, userObj>
@@ -42,6 +44,9 @@ io.use(socketAuthMiddleware);
 // --- Add near top of file (where you declare maps) ---
 const connectedSockets = new Map(); // socketId -> { userId, username, connectedAt }
 const userToSockets = new Map();    // userId -> Set(socketId)
+
+// very naive: 1 message / 500ms 
+const MIN_MSG_INTERVAL_MS = 500; // adjust as needed
 
 // --- Then replace your io.on('connection') with the block below ---
 io.on('connection', async (socket) => {
@@ -87,6 +92,9 @@ io.on('connection', async (socket) => {
       .map(u => ({ userId: u.userId, username: u.username || (userCache.get(u.userId)?.username || '') }));
   };
 
+  // Rate limiting for chat messages
+  socket.data.lastChatMessageAt = 0;
+
   // JOIN ROOM
   socket.on('joinRoom', async (roomId) => {
     try {
@@ -125,6 +133,13 @@ io.on('connection', async (socket) => {
       // Send initialData only to joining socket (drawings + adminId)
       socket.emit('initialData', { drawings: room.drawings, adminId: room.adminId });
 
+      // --- NEW: Send last 50 chat messages for this room ---
+      const lastMessages = await ChatMessage.find({ roomId })
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .lean();
+      socket.emit('chat:history', lastMessages.reverse());
+
       // Broadcast userJoined with canonical connectedUsersInRoom
       io.to(roomId).emit('userJoined', {
         userId,
@@ -150,6 +165,52 @@ io.on('connection', async (socket) => {
       y,
       username: name
     });
+  });
+
+  // --- CHAT SEND ---
+  socket.on('chat:send', async (payload, ack) => {
+    try {
+      const now = Date.now();
+      if (now - socket.data.lastChatMessageAt < MIN_MSG_INTERVAL_MS) {
+        if (typeof ack === 'function') ack({ ok: false, error: 'You are sending messages too fast' });
+        return;
+      }
+      socket.data.lastChatMessageAt = now;
+
+      const { roomId, text } = payload || {};
+      if (!roomId || !text || typeof text !== 'string' || text.trim().length === 0) {
+        if (typeof ack === 'function') ack({ ok: false, error: 'roomId and text are required' });
+        return;
+      }
+
+      // Sanitize & limit message length
+      let cleanText = text.trim().substring(0, 2000);
+
+      // Persist message in DB
+      const messageDoc = new ChatMessage({
+        roomId,
+        userId,
+        username,
+        text: cleanText,
+      });
+      await messageDoc.save();
+
+      // Broadcast to room
+      const msgPayload = {
+        _id: messageDoc._id,
+        roomId,
+        userId,
+        username,
+        text: cleanText,
+        createdAt: messageDoc.createdAt
+      };
+      io.to(roomId).emit('chat:new', msgPayload);
+
+      if (typeof ack === 'function') ack({ ok: true, message: msgPayload });
+    } catch (err) {
+      console.error('chat:send error', err);
+      if (typeof ack === 'function') ack({ ok: false, error: 'Server error' });
+    }
   });
 
   // DRAW (line)

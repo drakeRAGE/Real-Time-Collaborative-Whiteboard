@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { FaUsers } from "react-icons/fa";
+import ChatMessage from "./ChatMessage";
 
 function UsersList({ socket, roomId }) {
     const [open, setOpen] = useState(false);
     const [toasts, setToasts] = useState([]);
-    const { users, setUsers, setAdminId, isAdmin, setIsAdmin } = useAuth();
+    const { userId, email, users, setUsers, setAdminId, isAdmin, setIsAdmin } = useAuth();
 
     const toggleDrawer = () => {
         setOpen(!open);
@@ -61,6 +62,13 @@ function UsersList({ socket, roomId }) {
         let sum = 0;
         for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i);
         return colors[sum % colors.length];
+    };
+
+    // Extract clean name from email
+    const getUserName = (email) => {
+        if (!email) return "";
+        const namePart = email.split("@")[0];
+        return namePart.replace(/\.(com|net|org|xyz|io|co)$/i, ""); // strip common extensions if present
     };
 
     return (
@@ -142,6 +150,15 @@ function UsersList({ socket, roomId }) {
                     })}
 
 
+                </div>
+
+                <div style={{ height: 'auto', width: 'auto' }}>
+                    <ChatMessage
+                        socket={socket}
+                        roomId={roomId}
+                        userId={userId}
+                        username={getUserName(email)}
+                    />
                 </div>
             </div>
 
