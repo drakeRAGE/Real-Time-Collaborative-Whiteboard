@@ -18,6 +18,7 @@ import { supabase } from "../utils/supabase";
 import { useAuth } from "../context/AuthContext";
 import { FaRedo, FaUndo } from "react-icons/fa";
 import ChatMessage from "./ChatMessage";
+import VideoCallSession from "./VideoCallSession";
 
 function Whiteboard() {
     const { roomId } = useParams();
@@ -677,6 +678,13 @@ function Whiteboard() {
                     username={getUserName(email)}
                 />
             </div>
+
+            <VideoCallSession
+                socket={socket}
+                roomId={roomId}
+                userId={userId}
+                username={getUserName(email)}
+            />
 
             {/* Modals */}
             {showDeleteModal && (

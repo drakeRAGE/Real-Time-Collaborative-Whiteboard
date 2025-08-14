@@ -9,6 +9,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  define: {
+    global: 'globalThis', // fixes "global is not defined"
+  },
   optimizeDeps: {
     include: ['@mui/material', '@mui/material/styles']
   }

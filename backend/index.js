@@ -12,6 +12,7 @@ import { loadOrCreateUser } from './controllers/user.controller.js';
 import { User } from './model/User.model.js';
 import rateLimit from 'express-rate-limit';
 import { ChatMessage } from './model/ChatMessage.model.js';
+import { CallSession } from './model/CallSession.model.js';
 
 // in-memory cache for quick lookups during runtime
 const userCache = new Map(); // Map<userId, userObj>
@@ -341,6 +342,148 @@ io.on('connection', async (socket) => {
       console.error('redo error', err);
       socket.emit('errorMsg', 'Redo failed');
     }
+  });
+
+  // CALL EVENTS
+  socket.on('call:join', async ({ roomId }) => {
+    try {
+      let callSession = await CallSession.findOne({ callSessionId: roomId });
+
+      // Create call session if it doesn't exist
+      if (!callSession) {
+        callSession = new CallSession({
+          callSessionId: roomId,
+          status: 'active',
+          participants: []
+        });
+      } else if (callSession.status === 'ended') {
+        // Reactivate ended call
+        callSession.status = 'active';
+        callSession.endedAt = null;
+      }
+
+      // Add user to participants if not already present
+      const participantExists = callSession.participants.some(p => p.userId === userId);
+      if (!participantExists) {
+        const userData = connectedUsers.get(userId) || {};
+        callSession.participants.push({
+          userId,
+          username: userData.username || username,
+          micEnabled: true,
+          cameraEnabled: true,
+          joinedAt: new Date()
+        });
+      }
+
+      await callSession.save();
+
+      // Join socket to call room
+      const callRoomId = `call:${roomId}`;
+      socket.join(callRoomId);
+
+      // Notify everyone in the call room
+      io.to(callRoomId).emit('call:userJoined', {
+        userId,
+        username,
+        participants: callSession.participants
+      });
+
+      // Send current call state to the joining user
+      socket.emit('call:state', callSession);
+    } catch (err) {
+      console.error('call:join error', err);
+      socket.emit('errorMsg', 'Failed to join call');
+    }
+  });
+
+  socket.on('call:leave', async ({ roomId }) => {
+    try {
+      const callRoomId = `call:${roomId}`;
+      socket.leave(callRoomId);
+
+      const callSession = await CallSession.findOne({ callSessionId: roomId });
+      if (!callSession) return;
+
+      // Remove user from participants
+      callSession.participants = callSession.participants.filter(p => p.userId !== userId);
+
+      // If no participants left, mark call as ended
+      if (callSession.participants.length === 0) {
+        callSession.status = 'ended';
+        callSession.endedAt = new Date();
+      }
+
+      await callSession.save();
+
+      // Notify everyone in the call room
+      io.to(callRoomId).emit('call:userLeft', {
+        userId,
+        username,
+        participants: callSession.participants
+      });
+
+      // If call ended, notify everyone
+      if (callSession.status === 'ended') {
+        io.to(callRoomId).emit('call:ended');
+      }
+    } catch (err) {
+      console.error('call:leave error', err);
+    }
+  });
+
+  socket.on('call:toggleMic', async ({ roomId, enabled }) => {
+    try {
+      const callSession = await CallSession.findOne({ callSessionId: roomId });
+      if (!callSession) return;
+
+      // Update user's mic status
+      const participant = callSession.participants.find(p => p.userId === userId);
+      if (participant) {
+        participant.micEnabled = enabled;
+        await callSession.save();
+
+        // Notify everyone in the call room
+        const callRoomId = `call:${roomId}`;
+        io.to(callRoomId).emit('call:micToggled', {
+          userId,
+          enabled
+        });
+      }
+    } catch (err) {
+      console.error('call:toggleMic error', err);
+    }
+  });
+
+  socket.on('call:toggleCamera', async ({ roomId, enabled }) => {
+    try {
+      const callSession = await CallSession.findOne({ callSessionId: roomId });
+      if (!callSession) return;
+
+      // Update user's camera status
+      const participant = callSession.participants.find(p => p.userId === userId);
+      if (participant) {
+        participant.cameraEnabled = enabled;
+        await callSession.save();
+
+        // Notify everyone in the call room
+        const callRoomId = `call:${roomId}`;
+        io.to(callRoomId).emit('call:cameraToggled', {
+          userId,
+          enabled
+        });
+      }
+    } catch (err) {
+      console.error('call:toggleCamera error', err);
+    }
+  });
+
+  // Handle WebRTC signaling
+  socket.on('call:signal', ({ roomId, to, signal }) => {
+    const callRoomId = `call:${roomId}`;
+    socket.to(callRoomId).emit('call:signal', {
+      from: userId,
+      signal
+    });
   });
 
   // DISCONNECT
