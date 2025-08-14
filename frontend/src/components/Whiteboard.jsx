@@ -66,8 +66,7 @@ function Whiteboard() {
                 setConnectionError("You are not logged in");
                 return;
             }
-
-            newSocket = io("http://localhost:5000", {
+            newSocket = io(import.meta.env.VITE_BACKEND_URL, {
                 auth: {
                     token: session.access_token // Send JWT to backend
                 },

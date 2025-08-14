@@ -38,6 +38,17 @@ mongoose.connect(process.env.MONGO)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
+// Serve static files from the React frontend app in production
+if (process.env.NODE_ENV === 'production') {
+  // Serve static files
+  app.use(express.static(new URL('../frontend/dist', import.meta.url).pathname));
+
+  // Handle React routing, return all requests to React app
+  app.get('*', (req, res) => {
+    res.sendFile(new URL('../frontend/dist/index.html', import.meta.url).pathname);
+  });
+}
+
 const connectedUsers = new Map();
 
 io.use(socketAuthMiddleware);

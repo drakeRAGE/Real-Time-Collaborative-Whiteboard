@@ -8,7 +8,7 @@ export const initializeSocket = async () => {
     throw new Error('No authenticated session');
   }
 
-  const socket = io('http://localhost:5000', {
+  const socket = io(import.meta.env.VITE_BACKEND_URL, {
     auth: { token: session.access_token },
     autoConnect: false // don’t connect automatically
   });

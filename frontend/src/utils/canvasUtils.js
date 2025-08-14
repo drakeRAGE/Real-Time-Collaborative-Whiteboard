@@ -10,7 +10,7 @@ export const deleteRoom = async (socket, roomId) => {
     if (!socket || !roomId) return false;
     
     try {
-        const response = await fetch(`http://localhost:5000/api/rooms/${roomId}`, {
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/rooms/${roomId}`, {
             method: 'DELETE'
         });
         
