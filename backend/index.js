@@ -44,7 +44,7 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(new URL('../frontend/dist', import.meta.url).pathname));
 
   // Handle React routing, return all requests to React app
-  app.get('*', (req, res) => {
+  app.get(/.*/, (req, res) => {
     res.sendFile(new URL('../frontend/dist/index.html', import.meta.url).pathname);
   });
 }
