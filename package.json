@@ -5,7 +5,7 @@
   "main": "backend/index.js",
   "type": "module",
   "scripts": {
-    "start": "npm run build:frontend && node backend/index.js",
+    "start": "node backend/index.js",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
