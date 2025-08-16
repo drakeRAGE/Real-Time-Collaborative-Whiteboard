@@ -74,7 +74,7 @@ function UsersList({ socket, roomId }) {
     return (
         <>
             {/* Toasts */}
-            <div className="fixed top-20 right-20 z-[9999] flex flex-col gap-2">
+            <div className="fixed top-20 right-25 z-[9999] flex flex-col gap-2">
                 {toasts.map((toast) => (
                     <div
                         key={toast.id}
@@ -93,7 +93,7 @@ function UsersList({ socket, roomId }) {
             {/* Floating Toggle Button */}
             <button
                 onClick={toggleDrawer}
-                className="fixed top-19 right-5 z-[9998] w-11 h-11 flex items-center justify-center rounded-full bg-white border border-gray-300 text-gray-600 shadow-sm hover:bg-gray-50 transition"
+                className="fixed top-19 right-7 z-[9998] w-11 h-11 flex items-center justify-center rounded-full bg-white border border-gray-300 text-gray-600 shadow-sm hover:bg-gray-50 transition"
             >
                 <FaUsers className="text-lg" />
             </button>

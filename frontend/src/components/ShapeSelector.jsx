@@ -6,20 +6,22 @@ import {
 import { BsTriangleFill, BsFillPentagonFill, BsHexagonFill } from "react-icons/bs";
 import { BiSolidRectangle } from "react-icons/bi";
 import { GoSquareFill } from "react-icons/go";
+import { GiArrowCursor } from "react-icons/gi";
 
 const shapeOptions = [
-    { label: 'pencil', shape: null, icon: <FaPencilAlt size={24} /> },
-    { label: 'square', shape: 'square', icon: <GoSquareFill size={24} /> },
-    { label: 'rectangle', shape: 'rectangle', icon: <BiSolidRectangle size={24} /> },
-    { label: 'circle', shape: 'circle', icon: <FaCircle size={24} /> },
-    { label: 'triangle', shape: 'triangle', icon: <BsTriangleFill size={24} /> },
-    { label: 'star', shape: 'star', icon: <FaStar size={24} /> },
-    { label: 'Pentagon', shape: 'pentagon', icon: <BsFillPentagonFill size={24} /> },
-    { label: 'Hexagon', shape: 'hexagon', icon: <BsHexagonFill size={24} /> },
-    { label: 'arrowUp', shape: 'arrowUp', icon: <FaArrowUp size={24} /> },
-    { label: 'arrowDown', shape: 'arrowDown', icon: <FaArrowDown size={24} /> },
-    { label: 'arrowLeft', shape: 'arrowLeft', icon: <FaArrowLeft size={24} /> },
-    { label: 'arrowRight', shape: 'arrowRight', icon: <FaArrowRight size={24} /> },
+    { label: 'none', shape: 'none', icon: <GiArrowCursor size={18} /> }, // Default pencil icon
+    { label: 'pencil', shape: null, icon: <FaPencilAlt size={18} /> },
+    { label: 'square', shape: 'square', icon: <GoSquareFill size={18} /> },
+    { label: 'rectangle', shape: 'rectangle', icon: <BiSolidRectangle size={18} /> },
+    { label: 'circle', shape: 'circle', icon: <FaCircle size={18} /> },
+    { label: 'triangle', shape: 'triangle', icon: <BsTriangleFill size={18} /> },
+    { label: 'star', shape: 'star', icon: <FaStar size={18} /> },
+    { label: 'Pentagon', shape: 'pentagon', icon: <BsFillPentagonFill size={18} /> },
+    { label: 'Hexagon', shape: 'hexagon', icon: <BsHexagonFill size={18} /> },
+    { label: 'arrowUp', shape: 'arrowUp', icon: <FaArrowUp size={18} /> },
+    { label: 'arrowDown', shape: 'arrowDown', icon: <FaArrowDown size={18} /> },
+    { label: 'arrowLeft', shape: 'arrowLeft', icon: <FaArrowLeft size={18} /> },
+    { label: 'arrowRight', shape: 'arrowRight', icon: <FaArrowRight size={18} /> },
 ];
 
 function ShapeSelector({ selectedShape, setSelectedShape, isEraserActive }) {
@@ -36,7 +38,7 @@ function ShapeSelector({ selectedShape, setSelectedShape, isEraserActive }) {
 
     return (
         <>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="fixed right-8 top-35 flex flex-col z-100 items-center gap-2 flex-wrap">
                 {shapeOptions.map(({ label, shape, icon }) => {
                     const isSelected = selectedShape === shape || (shape === null && !selectedShape);
                     return (

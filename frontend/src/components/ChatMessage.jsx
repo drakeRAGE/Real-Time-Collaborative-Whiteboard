@@ -100,7 +100,7 @@ export default function ChatMessage({ socket, roomId, userId, username }) {
                 <button
                     onClick={toggleOpen}
                     aria-label="Open chat"
-                    className="fixed bottom-5 right-5 z-50 flex items-center justify-center w-14 h-14 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                    className="fixed bottom-5 left-25 z-50 flex items-center justify-center w-14 h-14 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                 >
                     <FiMessageSquare size={28} />
                 </button>

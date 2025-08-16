@@ -11,20 +11,18 @@ const CopyUrl = () => {
     };
 
     return (
-        <div className="fixed top-20 left-5 z-50">
+        <div className="">
             {/* Button */}
             <button
                 onClick={handleCopy}
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-md shadow-sm border border-gray-200 
-                   text-blue-600 font-medium transition-all duration-200 hover:shadow-md hover:scale-105"
+                className={`rounded-lg transition bg-transparent cursor-pointer text-indigo-400 border-indigo-400 hover:bg-indigo-100 hover:text-indigo-600`}
             >
-                <FaShare className="text-lg" />
-                <span>Share</span>
+                <FaShare className="text-md" />
             </button>
 
             {/* Copied Toast */}
             {copied && (
-                <div className="absolute mt-3 left-0 bg-emerald-500 text-white text-sm font-medium px-4 py-2 rounded-lg shadow-md animate-fade-in">
+                <div className="absolute mt-5 left-0 bg-emerald-500 text-white text-sm font-medium px-4 py-2 rounded-lg shadow-md animate-fade-in">
                     Link copied!
                 </div>
             )}

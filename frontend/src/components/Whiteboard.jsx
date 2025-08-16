@@ -11,14 +11,16 @@ import LiveCursors from './LiveCursors';
 import Modal from "../UI/Modal";
 import CopyUrl from "../UI/CopyUrl";
 import ShapeSelector from './ShapeSelector';
-import { MdDelete } from "react-icons/md";
-import { GrClear } from "react-icons/gr";
 import { BsEraserFill } from "react-icons/bs";
 import { supabase } from "../utils/supabase";
 import { useAuth } from "../context/AuthContext";
 import { FaRedo, FaUndo } from "react-icons/fa";
 import ChatMessage from "./ChatMessage";
 import VideoCallSession from "./VideoCallSession";
+import ColorPicker from "./ColorPicker";
+import { BiReset } from "react-icons/bi";
+import { HiOutlineTrash } from "react-icons/hi";
+
 
 function Whiteboard() {
     const { roomId } = useParams();
@@ -565,91 +567,67 @@ function Whiteboard() {
     };
 
     return (
-        <div className="h-screen flex flex-col text-white">
-            {/* Header */}
-            <header className="p-6 text-center bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 shadow-md text-2xl font-bold font-inter tracking-wide">
-                Collaborative Whiteboard
-            </header>
+        <div className="h-[92vh] flex flex-col text-white">
+            <ShapeSelector
+                selectedShape={selectedShape}
+                setSelectedShape={setSelectedShape}
+                isEraserActive={isEraserActive}
+            />
 
             {/* Toolbar */}
-            <div className="flex flex-wrap items-center justify-center gap-4 p-4 shadow-inner">
-                <ShapeSelector
-                    selectedShape={selectedShape}
-                    setSelectedShape={setSelectedShape}
-                    isEraserActive={isEraserActive}
-                />
+            <div className="fixed left-2 top-50 z-50 border border-indigo-500 px-0 py-4 rounded-2xl flex flex-col items-center justify-center gap-5 shadow-inner">
 
                 {/* Color Picker */}
-                <div className="flex items-center">
-                    <label className="relative">
-                        <input
-                            type="color"
-                            value={color}
-                            onChange={(e) => {
-                                if (isEraserActive && e.target.value !== "#ffffff") {
-                                    setIsEraserActive(false);
-                                }
-                                setColor(e.target.value);
-                            }}
-                            className="absolute inset-0 opacity-0 cursor-pointer"
-                        />
-                        <div
-                            className="w-12 h-12 rounded-full border border-gray-300 shadow-md transition-transform duration-200 hover:scale-105 hover:shadow-lg"
-                            style={{ backgroundColor: color }}
-                            title="Choose a color"
-                        />
-                    </label>
-                </div>
+                <ColorPicker
+                    color={color} setColor={setColor} isEraserActive={isEraserActive} setIsEraserActive={setIsEraserActive}
+                />
 
+                {/* Undo */}
+                <button
+                    className={`rounded-lg transition bg-transparent cursor-pointer text-indigo-400 border-indigo-400 hover:bg-indigo-100 hover:text-indigo-600`}
+                    onClick={() => socket.emit("undo", roomId)}
+                >
+                    <FaUndo className="text-sm text-indigo-500" />
+                </button>
+
+                {/* Redo */}
+                <button
+                    className={`rounded-lg transition bg-transparent cursor-pointer text-indigo-400 border-indigo-400 hover:bg-indigo-100 hover:text-indigo-600`}
+                    onClick={() => socket.emit("redo", roomId)}
+                >
+                    <FaRedo className="text-sm text-indigo-500" />
+                </button>
 
                 <BrushSizeSelector brushSize={brushSize} setBrushSize={setBrushSize} />
 
                 {/* Clear Board */}
-                <GrClear
+                <BiReset
                     onClick={() => setShowClearModal(true)}
-                    className="text-2xl cursor-pointer text-gray-300 hover:text-indigo-400 transition"
+                    className="text-xl cursor-pointer text-gray-400 hover:text-indigo-500 transition"
                     title="Clear Board"
                 />
 
                 {/* Delete Room */}
-                <MdDelete
+                <HiOutlineTrash
                     onClick={() => setShowDeleteModal(true)}
-                    className="text-3xl cursor-pointer text-red-500 hover:text-red-400 transition"
+                    className="text-xl cursor-pointer text-gray-400 hover:text-red-500 transition"
                     title="Delete Room"
                 />
 
                 {/* Eraser */}
                 <button
-                    className={`p-2 rounded-lg border transition flex items-center justify-center ${isEraserActive
-                            ? "bg-indigo-100 border-indigo-500"
-                            : "bg-transparent border-gray-600"
-                        }`}
                     title="Erase"
                     onClick={toggleEraser}
                 >
                     <BsEraserFill
-                        className={`text-lg ${isEraserActive ? "text-indigo-600" : "text-gray-400"
+                        className={`text-lg cursor-pointer ${isEraserActive ? "text-indigo-600" : "text-gray-400"
                             }`}
                     />
                 </button>
 
-                {/* Undo */}
-                <button
-                    onClick={() => socket.emit("undo", roomId)}
-                    className={`flex items-center justify-center gap-2 px-4 py-2 rounded-full font-medium transition-all duration-200 bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md hover:scale-105`}
-                >
-                    <FaUndo className="text-lg" />
-                    <span className="hidden sm:inline">Undo</span>
-                </button>
+                {/* Share URL */}
+                <CopyUrl />
 
-                {/* Redo */}
-                <button
-                    onClick={() => socket.emit("redo", roomId)}
-                    className={`flex items-center justify-center gap-2 px-4 py-2 rounded-full font-medium transition-all duration-200 bg-green-500 hover:bg-green-600 text-white shadow-sm hover:shadow-md hover:scale-105`}
-                >
-                    <FaRedo className="text-lg" />
-                    <span className="hidden sm:inline">Redo</span>
-                </button>
             </div>
 
             {/* Canvas Area */}
@@ -662,8 +640,9 @@ function Whiteboard() {
                     onMouseMove={draw}
                     className={`block w-full h-full ${isEraserActive
                             ? "cursor-[url('/eraser.png'),_auto]"
-                            : "cursor-crosshair"
-                        }`}
+                            : "cursor-crosshair"}
+                            ${selectedShape === 'none'? 'cursor-default': ''}
+                        `}
                 />
                 <LiveCursors socket={socket} roomId={roomId} />
                 <UsersList socket={socket} roomId={roomId} />
@@ -706,7 +685,6 @@ function Whiteboard() {
                     }
                 />
             )}
-            <CopyUrl />
         </div>
     );
 }

@@ -1,4 +1,3 @@
-import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -19,26 +18,26 @@ export default function Navbar() {
     };
 
     return (
-        <nav className="w-full bg-white border-b border-gray-200 shadow-sm px-6 py-3 flex items-center justify-between">
+        <nav className="w-full h-[8vh] bg-slate-700 border-b border-gray-200 shadow-sm px-6 py-3 flex items-center justify-between">
             {/* Left: Logo / Brand */}
             <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gray-200 rounded-md flex items-center justify-center font-bold text-gray-700">
+                <div className="w-8 h-8 bg-gray-700 rounded-md flex items-center justify-center font-bold text-white">
                     W
                 </div>
-                <span className="font-medium text-gray-700">Whiteboard</span>
+                <span className="font-medium text-gray-200">Whiteboard</span>
             </div>
 
             {/* Middle: Links */}
             <div className="hidden md:flex items-center gap-6">
                 <Link
                     to="/room"
-                    className="text-gray-600 hover:text-gray-900 transition text-sm"
+                    className="text-white hover:text-gray-300 transition text-sm"
                 >
                     Room
                 </Link>
                 <Link
                     to="/auth"
-                    className="text-gray-600 hover:text-gray-900 transition text-sm"
+                    className="text-white hover:text-gray-300 transition text-sm"
                 >
                     Auth
                 </Link>
@@ -48,7 +47,7 @@ export default function Navbar() {
             <div className="flex items-center gap-4">
                 {userId ? (
                     <>
-                        <span className="text-gray-600 text-sm">
+                        <span className="text-white text-sm">
                             👋 Hi, <span className="font-medium">{getUserName(email)}</span>
                         </span>
                         <button
