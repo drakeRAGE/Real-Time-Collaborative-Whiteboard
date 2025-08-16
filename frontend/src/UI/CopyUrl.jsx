@@ -15,7 +15,7 @@ const CopyUrl = () => {
             {/* Button */}
             <button
                 onClick={handleCopy}
-                className={`rounded-lg transition bg-transparent cursor-pointer text-indigo-400 border-indigo-400 hover:bg-indigo-100 hover:text-indigo-600`}
+                className={`rounded-lg transition bg-transparent cursor-pointer text-gray-400 border-indigo-400 hover:text-indigo-500`}
             >
                 <FaShare className="text-md" />
             </button>

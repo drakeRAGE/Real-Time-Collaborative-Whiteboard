@@ -557,12 +557,18 @@ function Whiteboard() {
         return namePart.replace(/\.(com|net|org|xyz|io|co)$/i, ""); // strip common extensions if present
     };
 
+    const [prevColor, setPrevColor] = useState(color);
     const toggleEraser = () => {
-        setIsEraserActive(!isEraserActive);
         if (!isEraserActive) {
-            // set shape to be pencil which is null and color to be white
+            // Save current color before switching to eraser
+            setPrevColor(color);
+            setColor("#ffffff"); // eraser uses white
             setSelectedShape(null);
-            setColor("#ffffff");
+            setIsEraserActive(true);
+        } else {
+            // Restore previous color when disabling eraser
+            setColor(prevColor);
+            setIsEraserActive(false);
         }
     };
 
@@ -575,7 +581,7 @@ function Whiteboard() {
             />
 
             {/* Toolbar */}
-            <div className="fixed left-2 top-50 z-50 border border-indigo-500 px-0 py-4 rounded-2xl flex flex-col items-center justify-center gap-5 shadow-inner">
+            <div className="fixed left-2 top-50 z-50 bg-gray-200 border border-indigo-500 px-0 py-4 rounded-2xl flex flex-col items-center justify-center gap-5 shadow-inner">
 
                 {/* Color Picker */}
                 <ColorPicker
