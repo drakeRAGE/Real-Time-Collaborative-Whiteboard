@@ -490,11 +490,27 @@ io.on('connection', async (socket) => {
 
   // Handle WebRTC signaling
   socket.on('call:signal', ({ roomId, to, signal }) => {
-    const callRoomId = `call:${roomId}`;
-    socket.to(callRoomId).emit('call:signal', {
-      from: userId,
-      signal
-    });
+    try {
+      if (to) {
+        // send directly to all sockets of target user
+        const targetSockets = userToSockets.get(to);
+        if (targetSockets && targetSockets.size > 0) {
+          for (const sid of targetSockets) {
+            io.to(sid).emit('call:signal', { from: userId, signal });
+          }
+        } else {
+          // fallback: broadcast to room if target not found
+          const callRoomId = `call:${roomId}`;
+          socket.to(callRoomId).emit('call:signal', { from: userId, signal });
+        }
+      } else {
+        // legacy fallback: broadcast to call room (except sender)
+        const callRoomId = `call:${roomId}`;
+        socket.to(callRoomId).emit('call:signal', { from: userId, signal });
+      }
+    } catch (err) {
+      console.error('call:signal routing error', err);
+    }
   });
 
   // DISCONNECT

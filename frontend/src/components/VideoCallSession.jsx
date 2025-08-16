@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { FiVideo, FiVideoOff, FiMic, FiMicOff, FiPhoneOff } from 'react-icons/fi';
 import Peer from 'simple-peer';
+import RemoteVideo from './RemoteVideo';
 
 export default function VideoCallSession({ socket, roomId, userId, username }) {
   const [inCall, setInCall] = useState(false);
@@ -94,27 +95,36 @@ export default function VideoCallSession({ socket, roomId, userId, username }) {
     }
   };
 
+  const ICE_CONFIG = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      // Optional TURN server if you have one:
+      // { urls: 'turn:your-turn-server.com:3478', username: 'user', credential: 'pass' }
+    ]
+  };
   // Create a peer connection to a new user
   const createPeer = (participantId, stream) => {
     const peer = new Peer({
       initiator: true,
       trickle: false,
-      stream
+      stream,
+      config: ICE_CONFIG
     });
 
     peer.on('signal', signal => {
-      socket.emit('call:signal', {
-        roomId,
-        to: participantId,
-        signal
-      });
+      socket.emit('call:signal', { roomId, to: participantId, signal });
     });
 
     peer.on('stream', remoteStream => {
-      setStreams(prev => ({
-        ...prev,
-        [participantId]: remoteStream
-      }));
+      setStreams(prev => ({ ...prev, [participantId]: remoteStream }));
+    });
+
+    peer.on('error', e => console.error('peer error', e));
+    peer.on('close', () => {
+      // cleanup
+      setPeers(prev => { const p = { ...prev }; delete p[participantId]; return p; });
+      setStreams(prev => { const s = { ...prev }; delete s[participantId]; return s; });
+      delete peersRef.current[participantId];
     });
 
     return peer;
@@ -125,22 +135,23 @@ export default function VideoCallSession({ socket, roomId, userId, username }) {
     const peer = new Peer({
       initiator: false,
       trickle: false,
-      stream
+      stream,
+      config: ICE_CONFIG
     });
 
-    peer.on('signal', signal => {
-      socket.emit('call:signal', {
-        roomId,
-        to: participantId,
-        signal
-      });
+    peer.on('signal', sig => {
+      socket.emit('call:signal', { roomId, to: participantId, signal: sig });
     });
 
     peer.on('stream', remoteStream => {
-      setStreams(prev => ({
-        ...prev,
-        [participantId]: remoteStream
-      }));
+      setStreams(prev => ({ ...prev, [participantId]: remoteStream }));
+    });
+
+    peer.on('error', e => console.error('peer error', e));
+    peer.on('close', () => {
+      setPeers(prev => { const p = { ...prev }; delete p[participantId]; return p; });
+      setStreams(prev => { const s = { ...prev }; delete s[participantId]; return s; });
+      delete peersRef.current[participantId];
     });
 
     peer.signal(signal);
@@ -331,12 +342,7 @@ export default function VideoCallSession({ socket, roomId, userId, username }) {
               .map(participant => (
                 <div key={participant.userId} className="relative bg-gray-800 rounded overflow-hidden">
                   {streams[participant.userId] && participant.cameraEnabled ? (
-                    <video
-                      autoPlay
-                      playsInline
-                      className="w-full h-full object-cover"
-                      srcObject={streams[participant.userId]}
-                    />
+                    <RemoteVideo stream={streams[participant.userId]} className="w-full h-full object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-800 text-white">
                       <div className="text-center">
