@@ -30,13 +30,13 @@ export default function Navbar() {
             <div className="hidden md:flex items-center gap-6">
                 <Link
                     to="/room"
-                    className="text-gray-600 hover:text-indigo-500 uppercase transition font-medium text-sm"
+                    className="text-gray-600 hover:text-indigo-500 transition font-medium text-sm"
                 >
                     Room
                 </Link>
                 <Link
                     to="/auth"
-                    className="text-gray-600 hover:text-indigo-500 uppercase transition font-medium text-sm"
+                    className="text-gray-600 hover:text-indigo-500 transition font-medium text-sm"
                 >
                     Login
                 </Link>

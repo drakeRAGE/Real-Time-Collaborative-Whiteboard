@@ -6,7 +6,6 @@ import { clearCanvas, deleteRoom, startDrawingUtils, endDrawingUtils } from "../
 
 // All drawshape fncs from utils
 import { drawRectangle, drawCircle, drawSquare, drawTriangle, drawStar, drawPentagon, drawHexagon, drawArrowUp, drawArrowDown, drawArrowLeft, drawArrowRight } from '../utils/canvasUtils';
-import UsersList from './UsersList';
 import LiveCursors from './LiveCursors';
 import Modal from "../UI/Modal";
 import CopyUrl from "../UI/CopyUrl";
@@ -15,11 +14,10 @@ import { BsEraserFill } from "react-icons/bs";
 import { supabase } from "../utils/supabase";
 import { useAuth } from "../context/AuthContext";
 import { FaRedo, FaUndo } from "react-icons/fa";
-import ChatMessage from "./ChatMessage";
-import VideoCallSession from "./VideoCallSession";
 import ColorPicker from "./ColorPicker";
 import { BiReset } from "react-icons/bi";
 import { HiOutlineTrash } from "react-icons/hi";
+import CommunicationPanel from "./Communication";
 
 
 function Whiteboard() {
@@ -635,6 +633,14 @@ function Whiteboard() {
                 <CopyUrl />
 
             </div>
+            
+            {/* Communication Panel - UsersList, Chat & Video */}
+            <CommunicationPanel
+                socket={socket}
+                roomId={roomId}
+                userId={userId}
+                username={getUserName(email)}
+            />
 
             {/* Canvas Area */}
             <div className="flex-grow relative">
@@ -651,24 +657,7 @@ function Whiteboard() {
                         `}
                 />
                 <LiveCursors socket={socket} roomId={roomId} />
-                <UsersList socket={socket} roomId={roomId} />
             </div>
-
-            <div style={{ height: 'auto', width: 'auto' }}>
-                <ChatMessage
-                    socket={socket}
-                    roomId={roomId}
-                    userId={userId}
-                    username={getUserName(email)}
-                />
-            </div>
-
-            <VideoCallSession
-                socket={socket}
-                roomId={roomId}
-                userId={userId}
-                username={getUserName(email)}
-            />
 
             {/* Modals */}
             {showDeleteModal && (

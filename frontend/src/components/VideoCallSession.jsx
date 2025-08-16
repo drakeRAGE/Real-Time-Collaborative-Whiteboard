@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { FiVideo, FiVideoOff, FiMic, FiMicOff, FiPhoneOff } from 'react-icons/fi';
+import { FiVideo, FiVideoOff, FiMic, FiMicOff, FiPhoneOff, FiPhone } from 'react-icons/fi';
 import Peer from 'simple-peer';
 import RemoteVideo from './RemoteVideo';
 
@@ -277,117 +277,152 @@ export default function VideoCallSession({ socket, roomId, userId, username }) {
   };
 
   return (
-    <>
-      {/* Call button */}
-      <button
-        onClick={toggleCallPanel}
-        aria-label={inCall ? 'Toggle call panel' : 'Join call'}
-        className={`fixed bottom-5 left-5 z-50 flex items-center justify-center w-14 h-14 rounded-full shadow-lg ${inCall ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white transition-colors`}
-      >
-        {inCall ? (
-          <FiVideo size={28} />
-        ) : (
-          <FiVideo size={28} />
-        )}
-      </button>
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+        <h3 className="text-lg font-semibold text-gray-800">Video Call</h3>
+        <div className="flex items-center gap-2">
+          {inCall && (
+            <span className="px-2 py-1 bg-green-100 text-green-600 rounded-full text-sm font-medium flex items-center gap-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              Live
+            </span>
+          )}
+          <span className="px-2 py-1 bg-indigo-100 text-indigo-600 rounded-full text-sm font-medium">
+            {participants.length}
+          </span>
+        </div>
+      </div>
 
-      {/* Call panel */}
-      <aside
-        className={`fixed bottom-5 left-6 z-40 w-[90vw] max-w-[800px] h-[480px] bg-gray-900 rounded-lg shadow-2xl flex flex-col overflow-hidden transform transition-transform duration-300 ${callOpen && inCall ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0 pointer-events-none'}`}
-        role="region"
-        aria-label="Video call"
-      >
-        {/* Header */}
-        <header className="flex items-center justify-between bg-gray-800 px-4 py-3">
-          <h2 className="text-white font-semibold text-lg select-none">Video Call ({participants.length} participants)</h2>
+      {!inCall ? (
+        /* Call Start Screen */
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
+            <FiVideo className="text-3xl text-indigo-600" />
+          </div>
+          <h4 className="text-lg font-semibold text-gray-800 mb-2">Start Video Call</h4>
+          <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+            Connect with your team members through video. Make sure your camera and microphone are working.
+          </p>
           <button
-            onClick={() => setCallOpen(false)}
-            aria-label="Minimize call"
-            className="text-white hover:text-gray-200"
+            onClick={joinCall}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors font-medium"
           >
-            <FiVideoOff size={20} />
+            <FiPhone className="text-lg" />
+            Join Call
           </button>
-        </header>
-
-        {/* Video grid */}
-        <div className="flex-1 bg-gray-900 p-2 overflow-hidden">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 h-full">
-            {/* Local video */}
-            <div className="relative bg-gray-800 rounded overflow-hidden">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                muted
-                playsInline
-                className={`w-full h-full object-cover ${!cameraEnabled ? 'hidden' : ''}`}
-              />
-              {!cameraEnabled && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-800 text-white">
-                  <div className="text-center">
-                    <div className="w-20 h-20 mx-auto bg-gray-700 rounded-full flex items-center justify-center mb-2">
-                      <span className="text-2xl font-semibold">{username?.charAt(0) || 'U'}</span>
+        </div>
+      ) : (
+        /* Active Call Interface */
+        <>
+          {/* Video Grid */}
+          <div className="flex-1 p-2 bg-gray-900 overflow-hidden">
+            <div className="grid grid-cols-1 gap-2 h-full">
+              {/* Local Video */}
+              <div className="relative bg-gray-800 rounded-lg overflow-hidden min-h-[120px]">
+                {cameraEnabled ? (
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-800 text-white">
+                    <div className="text-center">
+                      <div className="w-12 h-12 mx-auto bg-gray-700 rounded-full flex items-center justify-center mb-2">
+                        <span className="text-lg font-semibold">{username?.charAt(0) || 'Y'}</span>
+                      </div>
+                      <p className="text-xs">{username || 'You'}</p>
                     </div>
-                    <p className="text-sm">{username || 'You'}</p>
                   </div>
+                )}
+                <div className="absolute bottom-2 left-2 bg-black bg-opacity-60 px-2 py-1 rounded text-xs text-white">
+                  You {!micEnabled && '(muted)'}
                 </div>
-              )}
-              <div className="absolute bottom-2 left-2 text-white bg-black bg-opacity-50 px-2 py-1 rounded text-xs">
-                You {!micEnabled && '(muted)'}
               </div>
+
+              {/* Remote Videos */}
+              {participants
+                .filter(p => p.userId !== userId)
+                .slice(0, 2)
+                .map(participant => (
+                  <div key={participant.userId} className="relative bg-gray-800 rounded-lg overflow-hidden min-h-[120px]">
+                    {streams[participant.userId] && participant.cameraEnabled ? (
+                      <RemoteVideo
+                        stream={streams[participant.userId]}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gray-800 text-white">
+                        <div className="text-center">
+                          <div className="w-12 h-12 mx-auto bg-gray-700 rounded-full flex items-center justify-center mb-2">
+                            <span className="text-lg font-semibold">
+                              {participant.username?.charAt(0) || 'U'}
+                            </span>
+                          </div>
+                          <p className="text-xs">{participant.username || 'User'}</p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-60 px-2 py-1 rounded text-xs text-white">
+                      {participant.username} {!participant.micEnabled && '(muted)'}
+                    </div>
+                  </div>
+                ))}
             </div>
 
-            {/* Remote videos */}
-            {participants
-              .filter(p => p.userId !== userId)
-              .map(participant => (
-                <div key={participant.userId} className="relative bg-gray-800 rounded overflow-hidden">
-                  {streams[participant.userId] && participant.cameraEnabled ? (
-                    <RemoteVideo stream={streams[participant.userId]} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-800 text-white">
-                      <div className="text-center">
-                        <div className="w-20 h-20 mx-auto bg-gray-700 rounded-full flex items-center justify-center mb-2">
-                          <span className="text-2xl font-semibold">{participant.username?.charAt(0) || 'U'}</span>
-                        </div>
-                        <p className="text-sm">{participant.username || 'User'}</p>
-                      </div>
-                    </div>
-                  )}
-                  <div className="absolute bottom-2 left-2 text-white bg-black bg-opacity-50 px-2 py-1 rounded text-xs">
-                    {participant.username} {!participant.micEnabled && '(muted)'}
-                  </div>
-                </div>
-              ))}
+            {/* More participants indicator */}
+            {participants.filter(p => p.userId !== userId).length > 2 && (
+              <div className="mt-2 text-center">
+                <span className="text-xs text-gray-400">
+                  +{participants.filter(p => p.userId !== userId).length - 2} more participants
+                </span>
+              </div>
+            )}
           </div>
-        </div>
 
-        {/* Controls */}
-        <div className="flex justify-center items-center gap-4 p-4 bg-gray-800">
-          <button
-            onClick={toggleMic}
-            className={`p-3 rounded-full ${micEnabled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}
-            aria-label={micEnabled ? 'Mute microphone' : 'Unmute microphone'}
-          >
-            {micEnabled ? <FiMic size={24} color="white" /> : <FiMicOff size={24} color="white" />}
-          </button>
-          
-          <button
-            onClick={toggleCamera}
-            className={`p-3 rounded-full ${cameraEnabled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}
-            aria-label={cameraEnabled ? 'Turn off camera' : 'Turn on camera'}
-          >
-            {cameraEnabled ? <FiVideo size={24} color="white" /> : <FiVideoOff size={24} color="white" />}
-          </button>
-          
-          <button
-            onClick={leaveCall}
-            className="p-3 rounded-full bg-red-600 hover:bg-red-700"
-            aria-label="Leave call"
-          >
-            <FiPhoneOff size={24} color="white" />
-          </button>
-        </div>
-      </aside>
-    </>
+          {/* Controls */}
+          <div className="p-4 bg-gray-800 border-t border-gray-700">
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={toggleMic}
+                className={`p-2 rounded-full transition-colors ${micEnabled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                title={micEnabled ? 'Mute microphone' : 'Unmute microphone'}
+              >
+                {micEnabled ? (
+                  <FiMic size={18} color="white" />
+                ) : (
+                  <FiMicOff size={18} color="white" />
+                )}
+              </button>
+
+              <button
+                onClick={toggleCamera}
+                className={`p-2 rounded-full transition-colors ${cameraEnabled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                title={cameraEnabled ? 'Turn off camera' : 'Turn on camera'}
+              >
+                {cameraEnabled ? (
+                  <FiVideo size={18} color="white" />
+                ) : (
+                  <FiVideoOff size={18} color="white" />
+                )}
+              </button>
+
+              <button
+                onClick={leaveCall}
+                className="p-2 rounded-full bg-red-600 hover:bg-red-700 transition-colors"
+                title="Leave call"
+              >
+                <FiPhoneOff size={18} color="white" />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
