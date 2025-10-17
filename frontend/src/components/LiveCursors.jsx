@@ -2,29 +2,46 @@ import { useEffect, useState } from 'react';
 
 function LiveCursors({ socket, roomId }) {
     const [cursors, setCursors] = useState({});
-    const [currentUserId, setCurrentUserId] = useState(null);
+    const [mySocketId, setMySocketId] = useState(null);
 
     useEffect(() => {
         if (!socket) return;
 
-        // Store current user's socket ID
-        setCurrentUserId(socket.id);
+        // capture the client's socket id (may be undefined briefly)
+        setMySocketId(socket.id);
 
-        const handleCursorMove = ({ userId, x, y, username }) => {
-            // Skip if this is the current user's cursor
-            if (userId === socket.id) return;
-            
+        const handleCursorMove = ({ userId, x, y, username, color, socketId }) => {
+            // Ignore cursor events originating from this client's socket
+            if (socketId && socketId === socket.id) return;
+
+            // If coordinates are invalid, ignore
+            if (typeof x !== 'number' || typeof y !== 'number') return;
+
             setCursors(prev => ({
                 ...prev,
-                [userId]: { x, y, username }
+                [userId]: { x, y, username, color }
             }));
         };
 
-        const handleUserJoined = ({ userId, username }) => {
-            setCursors(prev => ({
-                ...prev,
-                [userId]: { ...prev[userId], username }
-            }));
+        const handleUserJoined = ({ userId, username, users, adminId }) => {
+            // update username/color if we already have a cursor for that user
+            if (users && Array.isArray(users)) {
+                // apply colors/usernames from users list
+                setCursors(prev => {
+                    const next = { ...prev };
+                    for (const u of users) {
+                        if (next[u.userId]) {
+                            next[u.userId] = { ...next[u.userId], username: u.username, color: u.color };
+                        }
+                    }
+                    return next;
+                });
+            } else {
+                setCursors(prev => ({
+                    ...prev,
+                    [userId]: { ...prev[userId], username }
+                }));
+            }
         };
 
         const handleUserLeft = ({ userId }) => {
@@ -50,6 +67,7 @@ function LiveCursors({ socket, roomId }) {
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
 
+            // emit to server; server will attach userId & socketId & color when rebroadcasting
             socket.emit('cursorMove', {
                 roomId,
                 x,
@@ -77,47 +95,48 @@ function LiveCursors({ socket, roomId }) {
             pointerEvents: 'none',
             zIndex: 100
         }}>
-            {Object.entries(cursors)
-                .filter(([userId]) => userId !== currentUserId) // Filter out current user
-                .map(([userId, { x, y, username }]) => (
-                <div 
-                    key={JSON.stringify(userId)}
-                    style={{
-                        position: 'absolute',
-                        left: `${x}px`,
-                        top: `${y}px`,
-                        transform: 'translate(-50%, -50%)',
-                        pointerEvents: 'none',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center'
-                    }}
-                >
-                    <div style={{
-                        width: '12px',
-                        height: '12px',
-                        borderRadius: '50%',
-                        backgroundColor: '#9866ce',
-                        border: '2px solid white',
-                        boxShadow: '0 0 4px rgba(0,0,0,0.2)'
-                    }} />
-                    {username && (
+            {Object.entries(cursors).map(([userId, { x, y, username, color = '#9866ce' }]) => {
+                // If for any reason we somehow got our own userId mapped (double check via mySocketId),
+                // we can still filter by comparing userId->none. Primary filter is via socketId check on events.
+                return (
+                    <div
+                        key={userId}
+                        style={{
+                            position: 'absolute',
+                            left: `${x}px`,
+                            top: `${y}px`,
+                            transform: 'translate(-50%, -50%)',
+                            pointerEvents: 'none',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center'
+                        }}
+                    >
                         <div style={{
-                            marginTop: '4px',
-                            padding: '2px 6px',
-                            backgroundColor: 'rgba(152, 102, 206, 0.8)',
-                            color: 'white',
-                            borderRadius: '12px',
-                            fontSize: '12px',
-                            fontFamily: 'serif',
-                            whiteSpace: 'nowrap'
-                        }}>
-                            {username} 
-                            {/* {JSON.stringify(userId)} */}
-                        </div>
-                    )}
-                </div>
-            ))}
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            backgroundColor: color,
+                            border: '2px solid white',
+                            boxShadow: '0 0 4px rgba(0,0,0,0.2)'
+                        }} />
+                        {username && (
+                            <div style={{
+                                marginTop: '4px',
+                                padding: '2px 6px',
+                                backgroundColor: color ? `${color}CC` : 'rgba(152,102,206,0.8)',
+                                color: 'white',
+                                borderRadius: '12px',
+                                fontSize: '12px',
+                                fontFamily: 'serif',
+                                whiteSpace: 'nowrap'
+                            }}>
+                                {username}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
         </div>
     );
 }
