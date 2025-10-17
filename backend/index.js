@@ -60,6 +60,22 @@ const userToSockets = new Map();    // userId -> Set(socketId)
 // very naive: 1 message / 500ms 
 const MIN_MSG_INTERVAL_MS = 500; // adjust as needed
 
+// color palette (20 distinct colors)
+const COLORS = [
+  '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0',
+  '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#fffac8',
+  '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080'
+];
+
+function pickColorForUser(userId) {
+  if (!userId) return COLORS[0];
+  // cheap, deterministic hash -> index
+  let sum = 0;
+  for (let i = 0; i < userId.length; i++) sum += userId.charCodeAt(i);
+  return COLORS[sum % COLORS.length];
+}
+
+
 // --- Then replace your io.on('connection') with the block below ---
 io.on('connection', async (socket) => {
   const userId = socket.user?.id;
@@ -82,6 +98,7 @@ io.on('connection', async (socket) => {
   const username = userObj.username || (email ? email.split('@')[0] : (userId || socket.id).slice(0, 6));
 
   // Track this socket
+  const color = pickColorForUser(userId); // Color for cursor
   connectedSockets.set(socket.id, { userId, username, connectedAt: Date.now() });
   if (!userToSockets.has(userId)) userToSockets.set(userId, new Set());
   userToSockets.get(userId).add(socket.id);
@@ -101,7 +118,11 @@ io.on('connection', async (socket) => {
         const s = userToSockets.get(u.userId);
         return s && s.size > 0;
       })
-      .map(u => ({ userId: u.userId, username: u.username || (userCache.get(u.userId)?.username || '') }));
+      .map(u => ({
+        userId: u.userId,
+        username: u.username || (userCache.get(u.userId)?.username || ''),
+        color: pickColorForUser(u.userId)
+      }));
   };
 
   // Rate limiting for chat messages
@@ -175,11 +196,15 @@ io.on('connection', async (socket) => {
   socket.on('cursorMove', ({ roomId, x, y }) => {
     const socketInfo = connectedSockets.get(socket.id);
     const name = socketInfo?.username || username;
+    const color = socketInfo?.color || pickColorForUser(userId);
+    // include socketId so clients can ignore their own socket events
     socket.to(roomId).emit('cursorMove', {
       userId,
       x,
       y,
-      username: name
+      username: name,
+      color,
+      socketId: socket.id
     });
   });
 
