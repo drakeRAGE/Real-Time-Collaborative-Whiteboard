@@ -1,5 +1,11 @@
 # Whiteboard - Real Time Collaboration
 
+[![Hacktoberfest](https://img.shields.io/badge/Hacktoberfest-2025-blueviolet?style=for-the-badge&logo=hacktoberfest)](https://hacktoberfest.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](./LICENSE)
+[![Open Issues](https://img.shields.io/github/issues/drakeRAGE/Real-Time-Collaborative-Whiteboard?style=for-the-badge)](https://github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard/issues)
+[![Stars](https://img.shields.io/github/stars/drakeRAGE/Real-Time-Collaborative-Whiteboard?style=for-the-badge)](https://github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard/stargazers)
+[![Forks](https://img.shields.io/github/forks/drakeRAGE/Real-Time-Collaborative-Whiteboard?style=for-the-badge)](https://github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard/network/members)
+
 Collaborative Whiteboard is a real-time interactive platform that enables teams to brainstorm, design, and communicate seamlessly through a shared digital workspace. Combining whiteboard drawing tools with video conferencing and chat functionality, it provides a comprehensive solution for remote collaboration, online education, and creative teamwork.
 
 ## 🚀 Live Demo
