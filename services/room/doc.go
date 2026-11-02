@@ -1,2 +1,2 @@
-// Package room is a placeholder for the services/room module (Phase 0 scaffold).
+// Package room is the room-service module: membership, invites, and room lifecycle.
 package room
