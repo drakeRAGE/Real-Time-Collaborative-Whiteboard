@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package whiteboard.presence.v1;
+
+import "buf/validate/validate.proto";
+
+// Presence events are ephemeral: published on core NATS (wb.presence.>),
+// never persisted. presence-service keeps a Redis heartbeat view only.
+// There is no PresenceService RPC — presence is consumed via fanout.
+
+// CursorMoved broadcasts one user's cursor position to a room (legacy
+// 'cursorMove'). Color and username are stamped by the server: color via the
+// deterministic per-user hash ported from legacy pickColorForUser.
+message CursorMoved {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  string user_id = 2 [(buf.validate.field).string.uuid = true];
+  double x = 3 [(buf.validate.field).double = {
+    gte: 0
+    lte: 10000
+  }];
+  double y = 4 [(buf.validate.field).double = {
+    gte: 0
+    lte: 10000
+  }];
+  // Hex RGB cursor color, deterministic per user.
+  string color = 5 [(buf.validate.field).string.pattern = "^#[0-9a-fA-F]{6}$"];
+  string username = 6 [(buf.validate.field).string.max_len = 100];
+}
+
+// UserOnline is emitted when a user's first connection enters a room
+// (part of legacy 'userJoined').
+message UserOnline {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  string user_id = 2 [(buf.validate.field).string.uuid = true];
+  string username = 3 [(buf.validate.field).string.max_len = 100];
+  string color = 4 [(buf.validate.field).string.pattern = "^#[0-9a-fA-F]{6}$"];
+}
+
+// UserOffline is emitted when a user's last connection leaves a room or the
+// heartbeat expires (part of legacy 'userLeft' / disconnect handling).
+message UserOffline {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  string user_id = 2 [(buf.validate.field).string.uuid = true];
+}

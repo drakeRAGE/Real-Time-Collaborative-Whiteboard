@@ -2,9 +2,12 @@ version: '3'
 
 tasks:
   proto:
-    desc: Generate code from protobuf (Phase 1)
+    desc: Generate Go + TypeScript code from proto/ via buf
     cmds:
-      - echo proto generation not configured until Phase 1
+      # Pre-warm the npx cache: buf runs the ts-proto plugin in parallel and
+      # concurrent first-time npx installs race on the shared cache.
+      - npm exec --yes --package=ts-proto@2.18.3 -- node --version
+      - buf generate
 
   lint:
     desc: Run golangci-lint in each Go module

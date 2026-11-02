@@ -1,0 +1,26 @@
+version: v2
+managed:
+  enabled: true
+  disable:
+    # Keep protovalidate's published go_package (buf.build/gen/go/...).
+    - module: buf.build/bufbuild/protovalidate
+  override:
+    - file_option: go_package_prefix
+      value: github.com/drakeRAGE/realtime-whiteboard/gen/go
+plugins:
+  - local: protoc-gen-go
+    out: gen/go
+    opt: paths=source_relative
+  - local: protoc-gen-go-grpc
+    out: gen/go
+    opt: paths=source_relative
+  # ts-proto pinned via npx so it needs no global install.
+  - local:
+      - npx
+      - --yes
+      - ts-proto@2.18.3
+    out: frontend/src/realtime/gen
+    opt:
+      - esModuleInterop=true
+      - outputServices=false
+      - env=browser

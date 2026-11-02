@@ -1,0 +1,163 @@
+syntax = "proto3";
+
+package whiteboard.room.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+// RoomService is the authorization authority for rooms and membership.
+//
+// Caller identity (the principal) is taken from gRPC metadata stamped by the
+// gateway after JWT verification — NEVER from request fields. The only RPC
+// that names an explicit user is CheckMembership, where the gateway asks
+// about a user on a client's behalf (the hot authz path).
+service RoomService {
+  rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
+  rpc GetRoom(GetRoomRequest) returns (GetRoomResponse);
+  rpc JoinRoom(JoinRoomRequest) returns (JoinRoomResponse);
+  rpc LeaveRoom(LeaveRoomRequest) returns (LeaveRoomResponse);
+  rpc DeleteRoom(DeleteRoomRequest) returns (DeleteRoomResponse);
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+  rpc TransferAdmin(TransferAdminRequest) returns (TransferAdminResponse);
+  rpc CreateInvite(CreateInviteRequest) returns (CreateInviteResponse);
+  rpc ValidateInvite(ValidateInviteRequest) returns (ValidateInviteResponse);
+  // CheckMembership returns the role of user_id in room_id. Single indexed
+  // query; cached by the gateway (Redis, 30s TTL).
+  rpc CheckMembership(CheckMembershipRequest) returns (CheckMembershipResponse);
+}
+
+// Role of a user within a room. ROLE_NONE means "not a member".
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_NONE = 1;
+  ROLE_MEMBER = 2;
+  ROLE_ADMIN = 3;
+}
+
+message Room {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  // Empty when the room has no admin (e.g. soft-deleted empty room).
+  string admin_id = 2 [(buf.validate.field).string.max_len = 36];
+  string title = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 200
+  }];
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message Member {
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
+  string username = 2 [(buf.validate.field).string.max_len = 100];
+  Role role = 3 [(buf.validate.field).enum.defined_only = true];
+  google.protobuf.Timestamp joined_at = 4;
+}
+
+message CreateRoomRequest {
+  string title = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 200
+  }];
+}
+
+message CreateRoomResponse {
+  Room room = 1;
+}
+
+message GetRoomRequest {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetRoomResponse {
+  Room room = 1;
+}
+
+message JoinRoomRequest {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  // Optional invite token (opaque). Required only when the room is not open
+  // to the joining principal; validated against room_invites (hash compare,
+  // expiry, max_uses).
+  string invite_token = 2 [(buf.validate.field).string.max_len = 128];
+}
+
+message JoinRoomResponse {
+  Room room = 1;
+  Role role = 2;
+}
+
+message LeaveRoomRequest {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message LeaveRoomResponse {
+  // Set when the leaving principal was admin and adminship transferred to
+  // the oldest remaining member. Empty otherwise.
+  string new_admin_id = 1 [(buf.validate.field).string.max_len = 36];
+  // True when the last member left and the room was soft-deleted.
+  bool room_deleted = 2;
+}
+
+message DeleteRoomRequest {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message DeleteRoomResponse {}
+
+message ListMembersRequest {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ListMembersResponse {
+  repeated Member members = 1 [(buf.validate.field).repeated.max_items = 1000];
+}
+
+message TransferAdminRequest {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  string new_admin_user_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+message TransferAdminResponse {}
+
+message CreateInviteRequest {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  // Invite lifetime in seconds: 1 minute to 7 days.
+  int64 expires_in_seconds = 2 [(buf.validate.field).int64 = {
+    gte: 60
+    lte: 604800
+  }];
+  int32 max_uses = 3 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 1000
+  }];
+}
+
+message CreateInviteResponse {
+  string invite_id = 1 [(buf.validate.field).string.uuid = true];
+  // Plaintext token, returned exactly once; only its hash is stored.
+  string token = 2 [(buf.validate.field).string = {
+    min_len: 16
+    max_len: 128
+  }];
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message ValidateInviteRequest {
+  string token = 1 [(buf.validate.field).string = {
+    min_len: 16
+    max_len: 128
+  }];
+}
+
+message ValidateInviteResponse {
+  bool valid = 1;
+  // Room the invite grants access to; set only when valid.
+  string room_id = 2 [(buf.validate.field).string.max_len = 36];
+}
+
+message CheckMembershipRequest {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  string user_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+message CheckMembershipResponse {
+  Role role = 1 [(buf.validate.field).enum.defined_only = true];
+}

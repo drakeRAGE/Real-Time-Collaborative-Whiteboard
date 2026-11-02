@@ -1,0 +1,320 @@
+syntax = "proto3";
+
+package whiteboard.realtime.v1;
+
+import "buf/validate/validate.proto";
+import "whiteboard/board/v1/board.proto";
+import "whiteboard/chat/v1/chat.proto";
+import "whiteboard/presence/v1/presence.proto";
+import "whiteboard/room/v1/room.proto";
+
+// Binary protobuf frames exchanged over the gateway WebSocket (/ws).
+// Client -> server: ClientEnvelope. Server -> client: ServerEnvelope.
+//
+// Identity is NEVER carried in client payloads: the gateway stamps the
+// authenticated principal (JWT sub) on everything it publishes.
+// Full subject/stream/authz documentation lives in docs/CONTRACTS.md.
+
+// Media device kind for call toggles (collapses legacy call:toggleMic and
+// call:toggleCamera into one message).
+enum MediaKind {
+  MEDIA_KIND_UNSPECIFIED = 0;
+  MEDIA_KIND_MIC = 1;
+  MEDIA_KIND_CAMERA = 2;
+}
+
+// WS error codes surfaced to clients (replaces legacy free-text 'errorMsg').
+enum ErrorCode {
+  ERROR_CODE_UNSPECIFIED = 0;
+  ERROR_CODE_UNAUTHENTICATED = 1;
+  ERROR_CODE_PERMISSION_DENIED = 2;
+  ERROR_CODE_NOT_FOUND = 3;
+  ERROR_CODE_INVALID_ARGUMENT = 4;
+  ERROR_CODE_RATE_LIMITED = 5;
+  ERROR_CODE_FAILED_PRECONDITION = 6;
+  ERROR_CODE_INTERNAL = 7;
+}
+
+// ---------------------------------------------------------------------------
+// Client -> server
+// ---------------------------------------------------------------------------
+
+message ClientEnvelope {
+  // ULID, client-generated per message. Echoed in Ack and used as the
+  // NATS idempotency key (Nats-Msg-Id) for ops without their own id.
+  string client_msg_id = 1 [(buf.validate.field).string.pattern = "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"];
+
+  oneof payload {
+    option (buf.validate.oneof).required = true;
+
+    JoinRoom join_room = 10;
+    LeaveRoom leave_room = 11;
+    StrokeInput stroke_input = 12;
+    ShapeInput shape_input = 13;
+    ClearInput clear = 14;
+    UndoInput undo = 15;
+    RedoInput redo = 16;
+    ChatSend chat_send = 17;
+    CursorMove cursor_move = 18;
+    CallJoin call_join = 19;
+    CallLeave call_leave = 20;
+    CallSignal call_signal = 21;
+    CallToggle call_toggle = 22;
+  }
+}
+
+// Join a room (legacy 'joinRoom'). Board/chat history is NOT pushed over the
+// socket anymore: clients fetch it via the gateway REST endpoints backed by
+// BoardService.GetHistory/GetSnapshot and ChatService.GetHistory.
+message JoinRoom {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  // Optional invite token; validated by room-service when set.
+  string invite_token = 2 [(buf.validate.field).string.max_len = 128];
+}
+
+// Leave a room explicitly (legacy relied on socket disconnect only).
+message LeaveRoom {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// A freehand stroke (legacy 'draw' segments, batched into a polyline).
+message StrokeInput {
+  // ULID of the stroke, client-generated (idempotency key).
+  string stroke_id = 1 [(buf.validate.field).string.pattern = "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"];
+  string room_id = 2 [(buf.validate.field).string.uuid = true];
+  repeated whiteboard.board.v1.Point points = 3 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 500
+  }];
+  string color = 4 [(buf.validate.field).string.pattern = "^#[0-9a-fA-F]{6}$"];
+  double width = 5 [(buf.validate.field).double = {
+    gte: 1
+    lte: 100
+  }];
+  whiteboard.board.v1.Tool tool = 6 [(buf.validate.field).enum = {
+    defined_only: true
+    in: [
+      1,
+      2
+    ]
+  }];
+}
+
+// A geometric shape (legacy 'drawShape').
+message ShapeInput {
+  // ULID of the shape, client-generated (idempotency key).
+  string shape_id = 1 [(buf.validate.field).string.pattern = "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"];
+  string room_id = 2 [(buf.validate.field).string.uuid = true];
+  whiteboard.board.v1.ShapeKind kind = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    in: [
+      1,
+      2,
+      3
+    ]
+  }];
+  whiteboard.board.v1.Point start = 4 [(buf.validate.field).required = true];
+  whiteboard.board.v1.Point end = 5 [(buf.validate.field).required = true];
+  string color = 6 [(buf.validate.field).string.pattern = "^#[0-9a-fA-F]{6}$"];
+  double width = 7 [(buf.validate.field).double = {
+    gte: 1
+    lte: 100
+  }];
+}
+
+// Clear the board (legacy 'clear'). ADMIN only in the new design.
+message ClearInput {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// Undo the last active op (legacy 'undo'). ADMIN only. The server picks the
+// target op and broadcasts board.v1.UndoApplied{op_id}.
+message UndoInput {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// Redo the most recently undone op (legacy 'redo'). ADMIN only. Rejected
+// when new ops landed after the undo (redo stack cleared on new ops).
+message RedoInput {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// Send a chat message (legacy 'chat:send'). Result arrives as Ack; the
+// broadcast arrives as chat.v1.Message.
+message ChatSend {
+  // ULID of the message, client-generated (idempotency key).
+  string message_id = 1 [(buf.validate.field).string.pattern = "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"];
+  string room_id = 2 [(buf.validate.field).string.uuid = true];
+  string body = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 2000
+  }];
+}
+
+// Cursor position update (legacy 'cursorMove'). Username/color are stamped
+// server-side on the broadcast.
+message CursorMove {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  double x = 2 [(buf.validate.field).double = {
+    gte: 0
+    lte: 10000
+  }];
+  double y = 3 [(buf.validate.field).double = {
+    gte: 0
+    lte: 10000
+  }];
+}
+
+// Join the room's call (legacy 'call:join').
+message CallJoin {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// Leave the room's call (legacy 'call:leave').
+message CallLeave {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// WebRTC signaling payload relayed to one target user (legacy 'call:signal').
+// Relayed only when sender and target are members of the same room.
+message CallSignal {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  string target_user_id = 2 [(buf.validate.field).string.uuid = true];
+  // Opaque SDP/ICE payload (simple-peer signal JSON).
+  bytes payload = 3 [(buf.validate.field).bytes = {
+    min_len: 1
+    max_len: 65536
+  }];
+}
+
+// Toggle mic or camera (legacy 'call:toggleMic'/'call:toggleCamera').
+message CallToggle {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  MediaKind media = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    in: [
+      1,
+      2
+    ]
+  }];
+  bool enabled = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Server -> client
+// ---------------------------------------------------------------------------
+
+message ServerEnvelope {
+  oneof payload {
+    option (buf.validate.oneof).required = true;
+
+    Ack ack = 1;
+    Error error = 2;
+    RoomState room_state = 10;
+    whiteboard.presence.v1.UserOnline user_online = 11;
+    whiteboard.presence.v1.UserOffline user_offline = 12;
+    whiteboard.board.v1.StrokeAdded stroke_applied = 13;
+    whiteboard.board.v1.ShapeAdded shape_applied = 14;
+    whiteboard.board.v1.BoardCleared board_cleared = 15;
+    whiteboard.board.v1.UndoApplied undo_applied = 16;
+    whiteboard.board.v1.RedoApplied redo_applied = 17;
+    whiteboard.chat.v1.Message chat_message = 18;
+    whiteboard.presence.v1.CursorMoved cursor_moved = 19;
+    CallState call_state = 20;
+    CallUserJoined call_user_joined = 21;
+    CallUserLeft call_user_left = 22;
+    CallEnded call_ended = 23;
+    CallToggled call_toggled = 24;
+    CallSignalRelayed call_signal = 25;
+  }
+}
+
+// Per-message result (legacy socket.io ack callback). error unset = success.
+message Ack {
+  string client_msg_id = 1 [(buf.validate.field).string.pattern = "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"];
+  Error error = 2;
+}
+
+// Connection-level or unsolicited error (legacy 'errorMsg').
+message Error {
+  ErrorCode code = 1 [(buf.validate.field).enum.defined_only = true];
+  string message = 2 [(buf.validate.field).string.max_len = 500];
+}
+
+// A member currently connected to the room.
+message PresentMember {
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
+  string username = 2 [(buf.validate.field).string.max_len = 100];
+  // Deterministic per-user cursor color.
+  string color = 3 [(buf.validate.field).string.pattern = "^#[0-9a-fA-F]{6}$"];
+  whiteboard.room.v1.Role role = 4 [(buf.validate.field).enum.defined_only = true];
+}
+
+// Authoritative room view, sent to a socket after join and broadcast on
+// membership/admin changes (legacy 'initialData'.adminId + 'userJoined'.users
+// + 'userLeft'.users).
+message RoomState {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  // Empty when the room has no admin.
+  string admin_id = 2 [(buf.validate.field).string.max_len = 36];
+  repeated PresentMember members = 3 [(buf.validate.field).repeated.max_items = 1000];
+}
+
+// A participant in a room call.
+message CallParticipant {
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
+  string username = 2 [(buf.validate.field).string.max_len = 100];
+  bool mic_enabled = 3;
+  bool camera_enabled = 4;
+}
+
+// Full call roster, sent to a joining participant (legacy 'call:state').
+message CallState {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  repeated CallParticipant participants = 2 [(buf.validate.field).repeated.max_items = 100];
+}
+
+// Broadcast when a user joins the call (legacy 'call:userJoined').
+message CallUserJoined {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  string user_id = 2 [(buf.validate.field).string.uuid = true];
+  string username = 3 [(buf.validate.field).string.max_len = 100];
+  repeated CallParticipant participants = 4 [(buf.validate.field).repeated.max_items = 100];
+}
+
+// Broadcast when a user leaves the call (legacy 'call:userLeft').
+message CallUserLeft {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  string user_id = 2 [(buf.validate.field).string.uuid = true];
+  repeated CallParticipant participants = 3 [(buf.validate.field).repeated.max_items = 100];
+}
+
+// Broadcast when the last participant leaves (legacy 'call:ended').
+message CallEnded {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// Broadcast when a participant toggles mic/camera (legacy 'call:micToggled'
+// and 'call:cameraToggled').
+message CallToggled {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  string user_id = 2 [(buf.validate.field).string.uuid = true];
+  MediaKind media = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    in: [
+      1,
+      2
+    ]
+  }];
+  bool enabled = 4;
+}
+
+// Signaling payload relayed to the target user (legacy server 'call:signal').
+message CallSignalRelayed {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  string from_user_id = 2 [(buf.validate.field).string.uuid = true];
+  bytes payload = 3 [(buf.validate.field).bytes = {
+    min_len: 1
+    max_len: 65536
+  }];
+}

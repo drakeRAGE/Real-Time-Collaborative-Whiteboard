@@ -1,0 +1,184 @@
+syntax = "proto3";
+
+package whiteboard.board.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+// BoardService serves the persisted op-log. Writes arrive asynchronously via
+// NATS JetStream (subjects wb.board.*.v1), never via RPC.
+service BoardService {
+  // GetHistory pages through the op-log for a room in seq order.
+  // An empty cursor starts from the beginning (or the latest snapshot).
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+  // GetSnapshot returns the flattened "effective board": active ops only,
+  // up to upto_seq.
+  rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse);
+}
+
+// Drawing tool for freehand strokes. Legacy eraser drew white (#ffffff)
+// strokes; the new contract carries intent so renderers decide.
+enum Tool {
+  TOOL_UNSPECIFIED = 0;
+  TOOL_PEN = 1;
+  TOOL_ERASER = 2;
+}
+
+// Shape kinds supported by the legacy whiteboard ('line', 'rectangle',
+// 'circle' in legacy-backend drawings docs).
+enum ShapeKind {
+  SHAPE_KIND_UNSPECIFIED = 0;
+  SHAPE_KIND_LINE = 1;
+  SHAPE_KIND_RECT = 2;
+  SHAPE_KIND_CIRCLE = 3;
+}
+
+// A canvas coordinate. Bounds match the logical canvas space (0–10000).
+message Point {
+  double x = 1 [(buf.validate.field).double = {
+    gte: 0
+    lte: 10000
+  }];
+  double y = 2 [(buf.validate.field).double = {
+    gte: 0
+    lte: 10000
+  }];
+}
+
+// A freehand stroke: an ordered polyline of points. Replaces the legacy
+// per-segment 'draw' event ({x0,y0,x1,y1,color,size}) with batched points.
+message Stroke {
+  // ULID, client-generated; doubles as the idempotency key (Nats-Msg-Id).
+  string id = 1 [(buf.validate.field).string.pattern = "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"];
+  string room_id = 2 [(buf.validate.field).string.uuid = true];
+  string user_id = 3 [(buf.validate.field).string.uuid = true];
+  repeated Point points = 4 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 500
+  }];
+  // Hex RGB, e.g. "#e6194b".
+  string color = 5 [(buf.validate.field).string.pattern = "^#[0-9a-fA-F]{6}$"];
+  // Brush width in canvas units (legacy 'size').
+  double width = 6 [(buf.validate.field).double = {
+    gte: 1
+    lte: 100
+  }];
+  Tool tool = 7 [(buf.validate.field).enum = {
+    defined_only: true
+    in: [
+      1,
+      2
+    ]
+  }];
+}
+
+// A geometric shape defined by its bounding segment (legacy 'drawShape'
+// {x0,y0,x1,y1,color,size,shape}).
+message Shape {
+  // ULID, client-generated; doubles as the idempotency key (Nats-Msg-Id).
+  string id = 1 [(buf.validate.field).string.pattern = "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"];
+  string room_id = 2 [(buf.validate.field).string.uuid = true];
+  string user_id = 3 [(buf.validate.field).string.uuid = true];
+  ShapeKind kind = 4 [(buf.validate.field).enum = {
+    defined_only: true
+    in: [
+      1,
+      2,
+      3
+    ]
+  }];
+  Point start = 5 [(buf.validate.field).required = true];
+  Point end = 6 [(buf.validate.field).required = true];
+  string color = 7 [(buf.validate.field).string.pattern = "^#[0-9a-fA-F]{6}$"];
+  double width = 8 [(buf.validate.field).double = {
+    gte: 1
+    lte: 100
+  }];
+}
+
+// --- Op-log entries (persisted rows in `strokes`, broadcast after apply) ---
+
+message StrokeAdded {
+  Stroke stroke = 1 [(buf.validate.field).required = true];
+  // Per-room gapless sequence assigned by board-service.
+  int64 seq = 2 [(buf.validate.field).int64.gte = 1];
+}
+
+message ShapeAdded {
+  Shape shape = 1 [(buf.validate.field).required = true];
+  int64 seq = 2 [(buf.validate.field).int64.gte = 1];
+}
+
+message BoardCleared {
+  // ULID of this clear op (client_msg_id of the triggering envelope).
+  string op_id = 1 [(buf.validate.field).string.pattern = "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"];
+  string room_id = 2 [(buf.validate.field).string.uuid = true];
+  string user_id = 3 [(buf.validate.field).string.uuid = true];
+  int64 seq = 4 [(buf.validate.field).int64.gte = 1];
+}
+
+// UndoApplied marks the op identified by op_id inactive. The "effective
+// board" is the set of active ops ordered by seq.
+message UndoApplied {
+  // ULID of the op made inactive.
+  string op_id = 1 [(buf.validate.field).string.pattern = "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"];
+  string room_id = 2 [(buf.validate.field).string.uuid = true];
+  // User who performed the undo (admin-only policy, enforced at gateway and
+  // re-checked server-side).
+  string user_id = 3 [(buf.validate.field).string.uuid = true];
+  int64 seq = 4 [(buf.validate.field).int64.gte = 1];
+}
+
+// RedoApplied re-activates the op identified by op_id. Redo is rejected if
+// any new op landed after the corresponding undo (redo stack cleared on new
+// ops — standard whiteboard semantics, matching legacy redoStacks behavior).
+message RedoApplied {
+  // ULID of the op re-activated.
+  string op_id = 1 [(buf.validate.field).string.pattern = "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"];
+  string room_id = 2 [(buf.validate.field).string.uuid = true];
+  string user_id = 3 [(buf.validate.field).string.uuid = true];
+  int64 seq = 4 [(buf.validate.field).int64.gte = 1];
+}
+
+// One entry of the room op-log.
+message BoardOp {
+  google.protobuf.Timestamp created_at = 1;
+  oneof op {
+    option (buf.validate.oneof).required = true;
+
+    StrokeAdded stroke_added = 2;
+    ShapeAdded shape_added = 3;
+    BoardCleared board_cleared = 4;
+    UndoApplied undo_applied = 5;
+    RedoApplied redo_applied = 6;
+  }
+}
+
+message GetHistoryRequest {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  // Opaque pagination cursor from a previous response; empty = start.
+  string cursor = 2 [(buf.validate.field).string.max_len = 512];
+  int32 limit = 3 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 500
+  }];
+}
+
+message GetHistoryResponse {
+  repeated BoardOp ops = 1;
+  // Empty when there are no further pages.
+  string next_cursor = 2 [(buf.validate.field).string.max_len = 512];
+}
+
+message GetSnapshotRequest {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetSnapshotResponse {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  // Highest seq folded into this snapshot; 0 for an empty board.
+  int64 upto_seq = 2 [(buf.validate.field).int64.gte = 0];
+  // Active (not undone, not cleared) ops in seq order.
+  repeated BoardOp active_ops = 3;
+  google.protobuf.Timestamp created_at = 4;
+}

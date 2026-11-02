@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package whiteboard.chat.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+// ChatService serves persisted chat history. Writes arrive asynchronously via
+// NATS JetStream (wb.chat.message.v1), never via RPC.
+service ChatService {
+  // GetHistory pages through a room's messages, newest-first pages but each
+  // page ordered by created_at ascending (replaces the legacy socket
+  // 'chat:history' emit of the last 50 messages).
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+}
+
+// A chat message (legacy 'chat:new' payload).
+message Message {
+  // ULID, client-generated; doubles as the idempotency key (Nats-Msg-Id).
+  string id = 1 [(buf.validate.field).string.pattern = "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"];
+  string room_id = 2 [(buf.validate.field).string.uuid = true];
+  string user_id = 3 [(buf.validate.field).string.uuid = true];
+  // Display name, denormalized for rendering without a profile lookup.
+  string username = 4 [(buf.validate.field).string.max_len = 100];
+  string body = 5 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 2000
+  }];
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message GetHistoryRequest {
+  string room_id = 1 [(buf.validate.field).string.uuid = true];
+  // Opaque pagination cursor from a previous response; empty = latest page.
+  string cursor = 2 [(buf.validate.field).string.max_len = 512];
+  int32 limit = 3 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 100
+  }];
+}
+
+message GetHistoryResponse {
+  repeated Message messages = 1;
+  // Empty when there are no further pages.
+  string next_cursor = 2 [(buf.validate.field).string.max_len = 512];
+}
