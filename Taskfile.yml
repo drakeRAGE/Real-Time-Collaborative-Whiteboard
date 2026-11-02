@@ -1,0 +1,43 @@
+version: '3'
+
+tasks:
+  proto:
+    desc: Generate code from protobuf (Phase 1)
+    cmds:
+      - echo proto generation not configured until Phase 1
+
+  lint:
+    desc: Run golangci-lint in each Go module
+    cmds:
+      - powershell -NoProfile -File scripts/go-each-module.ps1 -Command "golangci-lint run ./..."
+
+  test:
+    desc: Run go test in each Go module
+    cmds:
+      - powershell -NoProfile -File scripts/go-each-module.ps1 -Command "go test ./..."
+
+  build:
+    desc: Build all Go modules
+    cmds:
+      - powershell -NoProfile -File scripts/go-each-module.ps1 -Command "go build ./..."
+
+  up:
+    desc: Start dev stack (Phase 8)
+    cmds:
+      - echo not implemented until Phase 8
+
+  down:
+    desc: Stop dev stack (Phase 8)
+    cmds:
+      - echo not implemented until Phase 8
+
+  logs:
+    desc: Tail compose logs (Phase 8)
+    cmds:
+      - echo not implemented until Phase 8
+
+  dev-frontend:
+    desc: Run frontend dev server
+    dir: frontend
+    cmds:
+      - npm run dev

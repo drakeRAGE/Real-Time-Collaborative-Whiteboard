@@ -1,0 +1,12 @@
+---
+description: Mandatory execution protocol for the Go microservices rebuild (model tiers, validation gates, locked decisions)
+alwaysApply: true
+---
+# Execution Protocol
+All work maps to a task ID in the plan "Senior Portfolio Upgrade". Before ANY task, read `.cursor/skills/plan-task-execution/SKILL.md` and follow it exactly. Non-negotiables:
+1. [HIGH]/[REVIEW] tasks (T1.1, T2.1, T3.3, T3.4, T4.2, T5.1, T7.2, T7.3, T9.2, T10.2, T11.2, T12.1, T13.1, T14.1, all phase reviews) require a high-end model. Fast models must stop and escalate.
+2. A task is done ONLY when its Validate block passed with shown command output.
+3. If validation fails twice, STOP and escalate — never improvise around the design.
+4. Locked decisions (Go microservices, gRPC+protovalidate, NATS JetStream, coder/websocket, Supabase Postgres+JWKS, Redis, go-task, ts-proto) are not re-litigated.
+5. Never hand-edit gen/, frontend/src/realtime/gen/, or sqlc output. Never extend legacy-backend/.
+Include this rule in every subagent prompt.

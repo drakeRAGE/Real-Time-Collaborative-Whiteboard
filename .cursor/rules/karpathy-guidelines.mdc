@@ -1,0 +1,17 @@
+---
+description: Enforce the Karpathy guidelines (think first, simplicity, surgical changes, verified goals) on all agent work
+alwaysApply: true
+---
+
+# Karpathy Guidelines — Mandatory for All Agent Work
+
+Every coding task in this project MUST follow the `karpathy-guidelines` skill at `.cursor/skills/karpathy-guidelines/SKILL.md`. Read it before writing, reviewing, or refactoring code. Include this requirement in every subagent prompt that involves code changes.
+
+The four non-negotiable principles:
+
+1. **Think Before Coding** — State assumptions explicitly. If multiple interpretations exist, present them instead of picking silently. If something is unclear, stop and ask.
+2. **Simplicity First** — Write the minimum code that solves the problem. No speculative features, abstractions, or configurability that wasn't asked for.
+3. **Surgical Changes** — Touch only what the task requires. Don't refactor or "improve" adjacent code. Every changed line must trace directly to the user's request.
+4. **Goal-Driven Execution** — Before implementing, convert the task into verifiable success criteria and a plan of `[Step] → verify: [check]`. Loop until every check actually passes (tests run, feature exercised, lints clean). Never declare a feature done without evidence it works.
+
+A task is complete only when its success criteria have been verified with real output (test results, command output, or a demonstrated working feature), not assumed.

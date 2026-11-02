@@ -1,0 +1,6 @@
+---
+description: Contract-first protobuf/NATS rules
+globs: ["proto/**", "gen/**", "frontend/src/realtime/gen/**", "**/buf.yaml", "**/buf.gen.yaml", "docs/CONTRACTS.md"]
+alwaysApply: false
+---
+Follow `.cursor/skills/realtime-contracts/SKILL.md`. Hard gates: `buf lint` and `buf breaking --against '.git#branch=main'` pass; `task proto && git diff --exit-code` shows no drift; every new field has protovalidate rules; every new WS event has an authz registry row, docs/CONTRACTS.md subject entry, and docs/SECURITY.md matrix row in the SAME PR. Never hand-edit generated code.

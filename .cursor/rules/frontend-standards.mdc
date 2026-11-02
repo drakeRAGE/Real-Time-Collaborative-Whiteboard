@@ -1,0 +1,6 @@
+---
+description: Frontend TS/React standards
+globs: ["frontend/**"]
+alwaysApply: false
+---
+Follow `.cursor/skills/frontend-standards/SKILL.md`. Hard gates: `npx tsc --noEmit`, `npm run lint`, `npm run build` clean. Forbidden: new `any` (TODO(types) cap 20, count only decreases), alert(), direct WebSocket/io() in components (SocketProvider only), hand-written types mirroring proto messages, icon buttons without aria-label.

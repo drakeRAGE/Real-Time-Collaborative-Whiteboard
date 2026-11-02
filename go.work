@@ -1,0 +1,17 @@
+go 1.23
+
+use (
+	.
+	./pkg/authn
+	./pkg/config
+	./pkg/grpcx
+	./pkg/logger
+	./pkg/natsx
+	./pkg/otelx
+	./pkg/redisx
+	./services/board
+	./services/chat
+	./services/gateway
+	./services/presence
+	./services/room
+)

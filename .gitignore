@@ -1,8 +1,13 @@
 node_modules
 */node_modules
 */.env
-*/dist
+bin/
+dist/
+coverage/
+*.test
 graphify-out
 .cursor/*
 !.cursor/skills/
 !.cursor/skills/**
+!.cursor/rules/
+!.cursor/rules/**

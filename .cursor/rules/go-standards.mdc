@@ -1,0 +1,6 @@
+---
+description: Go standards for services/ and pkg/
+globs: ["**/*.go"]
+alwaysApply: false
+---
+Follow `.cursor/skills/go-microservices-standards/SKILL.md`. Hard gates before done: `golangci-lint run ./...`, `go vet ./...`, `go test ./... -race` all clean; coverage pkg >= 80%, services >= 70%. Forbidden: os.Getenv outside pkg/config, SQL concatenation (sqlc only), trusting client-supplied user_id/room_id for authz, acking NATS before DB commit, panic outside main, package-level mutable state.
