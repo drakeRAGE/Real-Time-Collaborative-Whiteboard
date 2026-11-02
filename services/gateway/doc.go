@@ -1,2 +1,2 @@
-// Package gateway is a placeholder for the services/gateway module (Phase 0 scaffold).
+// Package gateway is the edge module: REST, the WebSocket hub, and realtime authz.
 package gateway
