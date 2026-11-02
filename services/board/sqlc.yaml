@@ -1,0 +1,36 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema:
+      - "../../migrations/0001_auth_stub.up.sql"
+      - "../../migrations/0002_profiles.up.sql"
+      - "../../migrations/0003_rooms.up.sql"
+      - "../../migrations/0004_board.up.sql"
+      - "../../migrations/0005_chat_calls_audit.up.sql"
+      - "../../migrations/0006_rls.up.sql"
+    queries: "internal/repo/queries"
+    gen:
+      go:
+        package: "db"
+        out: "internal/db"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "uuid"
+            nullable: true
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+              pointer: true
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+          - db_type: "timestamptz"
+            nullable: true
+            go_type:
+              type: "time.Time"
+              pointer: true
+          - db_type: "jsonb"
+            go_type: "encoding/json.RawMessage"

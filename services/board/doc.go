@@ -1,2 +1,2 @@
-// Package board is a placeholder for the services/board module (Phase 0 scaffold).
+// Package board is the board-service module: op-log ingest, undo/redo, and snapshots.
 package board
