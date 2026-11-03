@@ -1,19 +1,20 @@
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
-
 import react from '@vitejs/plugin-react-swc'
 
-// https://vite.dev/config/
 export default defineConfig({
   base: '/',
   plugins: [
     react(),
     tailwindcss(),
   ],
-  define: {
-    global: 'globalThis', // fixes "global is not defined"
+  resolve: {
+    alias: {
+      events: fileURLToPath(new URL('./node_modules/events/events.js', import.meta.url)),
+    },
   },
-  optimizeDeps: {
-    include: ['@mui/material', '@mui/material/styles']
-  }
+  define: {
+    global: 'globalThis',
+  },
 })
