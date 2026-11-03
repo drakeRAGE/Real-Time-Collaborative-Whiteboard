@@ -1,0 +1,12 @@
+.git
+.cursor
+graphify-out
+frontend
+legacy-backend
+**/node_modules
+**/.env
+.env
+*.md
+coverage
+bin
+dist

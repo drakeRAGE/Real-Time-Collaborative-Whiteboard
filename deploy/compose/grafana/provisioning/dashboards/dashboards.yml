@@ -1,0 +1,10 @@
+apiVersion: 1
+
+providers:
+  - name: whiteboard
+    orgId: 1
+    folder: Whiteboard
+    type: file
+    disableDeletion: true
+    options:
+      path: /var/lib/grafana/dashboards

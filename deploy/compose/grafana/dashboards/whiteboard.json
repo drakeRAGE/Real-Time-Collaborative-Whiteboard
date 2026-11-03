@@ -1,0 +1,47 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "up",
+          "refId": "A"
+        }
+      ],
+      "title": "Prometheus target up",
+      "type": "timeseries"
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": {
+        "content": "The gateway, room, board, chat, and presence processes do not export Prometheus metrics. There is no `/metrics` handler, so this dashboard does not show WebSocket connections, NATS consumer lag, or request latency. Those series are not invented here.\n\nTraces go to Jaeger: http://localhost:16686",
+        "mode": "markdown"
+      },
+      "title": "Application metrics",
+      "type": "text"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["whiteboard"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Whiteboard local",
+  "uid": "whiteboard-dev",
+  "version": 1
+}

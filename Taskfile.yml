@@ -25,19 +25,19 @@ tasks:
       - powershell -NoProfile -File scripts/go-each-module.ps1 -Command "go build ./..."
 
   up:
-    desc: Start dev stack (Phase 8)
+    desc: Build and start the local compose stack
     cmds:
-      - echo not implemented until Phase 8
+      - docker compose -f deploy/compose/docker-compose.yml up -d --build
 
   down:
-    desc: Stop dev stack (Phase 8)
+    desc: Stop the local compose stack
     cmds:
-      - echo not implemented until Phase 8
+      - docker compose -f deploy/compose/docker-compose.yml down {{.CLI_ARGS}}
 
   logs:
-    desc: Tail compose logs (Phase 8)
+    desc: Tail compose logs
     cmds:
-      - echo not implemented until Phase 8
+      - docker compose -f deploy/compose/docker-compose.yml logs -f {{.CLI_ARGS}}
 
   dev-frontend:
     desc: Run frontend dev server

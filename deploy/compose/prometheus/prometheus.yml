@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 15s
+
+# The Go services do not expose a Prometheus /metrics endpoint.
+# Do not invent one. This job only proves Prometheus itself is up.
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

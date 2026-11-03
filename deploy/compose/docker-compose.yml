@@ -1,0 +1,292 @@
+name: whiteboard
+
+x-otel: &otel
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+
+x-db: &db
+  DATABASE_URL: postgres://postgres:postgres@postgres:5432/whiteboard?sslmode=disable
+
+x-nats: &nats
+  NATS_URL: nats://nats:4222
+
+x-redis: &redis
+  REDIS_ADDR: redis:6379
+
+x-app-health: &app-health
+  interval: 5s
+  timeout: 3s
+  retries: 12
+  start_period: 20s
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: whiteboard
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/01-roles.sql:/docker-entrypoint-initdb.d/01-roles.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d whiteboard"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  migrate:
+    image: migrate/migrate:v4.18.2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../../migrations:/migrations:ro
+    command:
+      - "-path"
+      - "/migrations"
+      - "-database"
+      - "postgres://postgres:postgres@postgres:5432/whiteboard?sslmode=disable"
+      - "up"
+    restart: "no"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    volumes:
+      - natsdata:/data
+    ports:
+      - "4222:4222"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -T 2 -O /dev/null http://127.0.0.1:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.128.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel/collector.yaml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      jaeger:
+        condition: service_healthy
+    ports:
+      - "4317:4317"
+    healthcheck:
+      test: ["CMD", "/otelcol", "--version"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+    healthcheck:
+      test: ["CMD", "/usr/bin/wget", "-q", "-T", "2", "-O", "/dev/null", "http://127.0.0.1:16686/"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD", "/bin/wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:9090/-/healthy"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 15s
+
+  room-service:
+    image: whiteboard-room:dev
+    build:
+      context: ../..
+      dockerfile: services/room/Dockerfile
+    environment:
+      <<: [*db, *nats, *otel]
+      GRPC_ADDR: ":7001"
+      HTTP_ADDR: ":8001"
+      LOG_LEVEL: info
+    ports:
+      - "7001:7001"
+      - "8001:8001"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      otel-collector:
+        condition: service_healthy
+    healthcheck:
+      <<: *app-health
+      test: ["CMD", "/busybox", "wget", "-q", "-T", "2", "-O", "/dev/null", "http://127.0.0.1:8001/healthz"]
+    restart: on-failure
+    stop_grace_period: 15s
+
+  board:
+    image: whiteboard-board:dev
+    build:
+      context: ../..
+      dockerfile: services/board/Dockerfile
+    environment:
+      <<: [*db, *nats, *redis, *otel]
+      ROOM_GRPC_ADDR: room-service:7001
+      GRPC_ADDR: ":7002"
+      HTTP_ADDR: ":8002"
+      LOG_LEVEL: info
+    ports:
+      - "7002:7002"
+      - "8002:8002"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      room-service:
+        condition: service_healthy
+      otel-collector:
+        condition: service_healthy
+    healthcheck:
+      <<: *app-health
+      test: ["CMD", "/busybox", "wget", "-q", "-T", "2", "-O", "/dev/null", "http://127.0.0.1:8002/healthz"]
+    restart: on-failure
+    stop_grace_period: 15s
+
+  chat:
+    image: whiteboard-chat:dev
+    build:
+      context: ../..
+      dockerfile: services/chat/Dockerfile
+    environment:
+      <<: [*db, *nats, *redis, *otel]
+      GRPC_ADDR: ":7003"
+      HTTP_ADDR: ":8003"
+      LOG_LEVEL: info
+    ports:
+      - "7003:7003"
+      - "8003:8003"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      otel-collector:
+        condition: service_healthy
+    healthcheck:
+      <<: *app-health
+      test: ["CMD", "/busybox", "wget", "-q", "-T", "2", "-O", "/dev/null", "http://127.0.0.1:8003/healthz"]
+    restart: on-failure
+    stop_grace_period: 15s
+
+  presence:
+    image: whiteboard-presence:dev
+    build:
+      context: ../..
+      dockerfile: services/presence/Dockerfile
+    environment:
+      <<: [*nats, *redis, *otel]
+      HTTP_ADDR: ":8004"
+      LOG_LEVEL: info
+    ports:
+      - "8004:8004"
+    depends_on:
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      otel-collector:
+        condition: service_healthy
+    healthcheck:
+      <<: *app-health
+      test: ["CMD", "/busybox", "wget", "-q", "-T", "2", "-O", "/dev/null", "http://127.0.0.1:8004/healthz"]
+    restart: on-failure
+    stop_grace_period: 15s
+
+  gateway:
+    image: whiteboard-gateway:dev
+    build:
+      context: ../..
+      dockerfile: services/gateway/Dockerfile
+    environment:
+      <<: [*nats, *redis, *otel]
+      HTTP_ADDR: ":8080"
+      ROOM_GRPC_ADDR: room-service:7001
+      FRONTEND_URL: http://localhost:5173
+      SUPABASE_JWT_ISSUER: http://127.0.0.1:54321/auth/v1
+      SUPABASE_JWT_AUDIENCE: authenticated
+      SUPABASE_JWT_ALLOW_HS256: "true"
+      SUPABASE_JWT_SECRET: local-dev-only-not-a-cloud-secret
+      LOG_LEVEL: info
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      room-service:
+        condition: service_healthy
+      otel-collector:
+        condition: service_healthy
+    healthcheck:
+      <<: *app-health
+      test: ["CMD", "/busybox", "wget", "-q", "-T", "2", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+    restart: on-failure
+    stop_grace_period: 20s
+
+volumes:
+  pgdata:
+  natsdata:
