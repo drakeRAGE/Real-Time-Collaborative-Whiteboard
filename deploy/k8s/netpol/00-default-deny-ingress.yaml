@@ -1,0 +1,23 @@
+# Default-deny ingress for whiteboard workloads.
+# An allow policy in this directory opens only the ports that workload needs.
+# kind proof that a denied pod cannot connect is Phase 13. Do not treat these
+# manifests as runtime evidence.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: whiteboard
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - gateway
+          - room
+          - board
+          - chat
+          - presence
+          - nats
+  policyTypes:
+    - Ingress

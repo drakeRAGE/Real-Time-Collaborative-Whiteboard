@@ -1,0 +1,31 @@
+# chat-service accepts the gateway and NATS. gRPC 7003, health 8003.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: chat-ingress
+  namespace: whiteboard
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: chat
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gateway
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nats
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nats
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nats
+      ports:
+        - protocol: TCP
+          port: 7003
+        - protocol: TCP
+          port: 8003

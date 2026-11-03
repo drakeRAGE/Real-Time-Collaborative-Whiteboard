@@ -44,3 +44,42 @@ tasks:
     dir: frontend
     cmds:
       - npm run dev
+
+  security-gosec:
+    desc: Run gosec in each Go module
+    cmds:
+      - powershell -NoProfile -File scripts/gosec.ps1
+
+  security-govulncheck:
+    desc: Run govulncheck in each Go module
+    cmds:
+      - powershell -NoProfile -File scripts/govulncheck.ps1
+
+  security-gitleaks:
+    desc: Scan git history with gitleaks
+    cmds:
+      - powershell -NoProfile -File scripts/gitleaks-detect.ps1
+
+  security-npm:
+    desc: Fail frontend npm audit on high or critical advisories outside the exceptions file
+    cmds:
+      - powershell -NoProfile -File scripts/npm-audit.ps1
+
+  security-trivy:
+    desc: Scan local whiteboard-*:dev images with trivy when those images exist
+    cmds:
+      - powershell -NoProfile -File scripts/trivy-dev-images.ps1
+
+  security:
+    desc: Run gosec, govulncheck, gitleaks, npm audit, and trivy
+    cmds:
+      - task: security-gosec
+      - task: security-govulncheck
+      - task: security-gitleaks
+      - task: security-npm
+      - task: security-trivy
+
+  coverage:
+    desc: Fail when pkg coverage is under 80% or any service module is under 70%
+    cmds:
+      - powershell -NoProfile -File scripts/coverage-gate.ps1

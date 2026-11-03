@@ -1,0 +1,36 @@
+# room-service accepts the gateway (REST/WS), NATS, and board-service.
+# board dials ROOM_GRPC_ADDR for membership (services/board/cmd/main.go).
+# NATS does not dial room today; the NATS peer is the Phase 10 allow-list.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: room-ingress
+  namespace: whiteboard
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: room
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gateway
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: board
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nats
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nats
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nats
+      ports:
+        - protocol: TCP
+          port: 7001
+        - protocol: TCP
+          port: 8001

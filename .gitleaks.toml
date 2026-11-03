@@ -1,0 +1,8 @@
+title = "realtime-whiteboard"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Compose placeholder for local HS256. Not a cloud credential."
+regexes = ['''local-dev-only-not-a-cloud-secret''']

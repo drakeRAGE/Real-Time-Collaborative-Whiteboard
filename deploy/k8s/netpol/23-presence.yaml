@@ -1,0 +1,30 @@
+# presence-service accepts the gateway and NATS. Health HTTP 8004.
+# Presence has no gRPC port (deploy/compose/docker-compose.yml).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: presence-ingress
+  namespace: whiteboard
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: presence
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gateway
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nats
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nats
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nats
+      ports:
+        - protocol: TCP
+          port: 8004

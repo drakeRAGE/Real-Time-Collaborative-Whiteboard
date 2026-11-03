@@ -1,0 +1,7 @@
+pre-commit:
+  commands:
+    gitleaks:
+      run: powershell -NoProfile -File scripts/gitleaks-staged.ps1
+    lint:
+      glob: "*.go"
+      run: powershell -NoProfile -File scripts/lint-staged.ps1

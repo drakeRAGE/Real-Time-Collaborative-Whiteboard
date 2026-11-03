@@ -48,8 +48,15 @@ func (c *Checker) Role(ctx context.Context, user principal.User, roomID string) 
 	key := cacheKey(user.ID, roomID)
 	raw, err := c.rdb.Get(ctx, key).Result()
 	if err == nil {
-		if n, conv := strconv.Atoi(raw); conv == nil && n >= 0 && n <= int(roomv1.Role_ROLE_ADMIN) {
-			return roomv1.Role(n), nil
+		switch raw {
+		case "0":
+			return roomv1.Role_ROLE_UNSPECIFIED, nil
+		case "1":
+			return roomv1.Role_ROLE_NONE, nil
+		case "2":
+			return roomv1.Role_ROLE_MEMBER, nil
+		case "3":
+			return roomv1.Role_ROLE_ADMIN, nil
 		}
 	}
 	resp, err := c.rooms.CheckMembership(user.GRPC(ctx), &roomv1.CheckMembershipRequest{
