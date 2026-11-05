@@ -1,24 +1,33 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { installLocalAuth, loadSeed, localPassword } from './local-auth';
 import { ackErrorCode, undoEnvelope } from './proto';
 
-const skipReason = 'E2E_EMAIL and E2E_PASSWORD are unset, so live login, draw, chat, and undo were not run.';
-const guestSkip = 'E2E_GUEST_EMAIL and E2E_GUEST_PASSWORD are unset, so the non-admin undo rejection was not run.';
+const skipReason = 'No local seed and E2E_EMAIL/E2E_PASSWORD are unset, so live login, draw, chat, and undo were not run.';
+const guestSkip = 'No local guest seed and E2E_GUEST_EMAIL/E2E_GUEST_PASSWORD are unset, so the non-admin undo rejection was not run.';
 
 function credentials(): { email: string; password: string } | null {
   const email = process.env.E2E_EMAIL?.trim();
   const password = process.env.E2E_PASSWORD?.trim();
-  if (!email || !password) return null;
-  return { email, password };
+  if (email && password) return { email, password };
+  const seeded = loadSeed().find((user) => user.role === 'admin');
+  if (!seeded) return null;
+  return { email: seeded.email, password: localPassword };
 }
 
 function guestCredentials(): { email: string; password: string } | null {
   const email = process.env.E2E_GUEST_EMAIL?.trim();
   const password = process.env.E2E_GUEST_PASSWORD?.trim();
-  if (!email || !password) return null;
-  return { email, password };
+  if (email && password) return { email, password };
+  const seeded = loadSeed().find((user) => user.role === 'guest');
+  if (!seeded) return null;
+  return { email: seeded.email, password: localPassword };
 }
 
 async function login(page: Page, email: string, password: string): Promise<void> {
+  const seeded = loadSeed();
+  if (seeded.length > 0 && !process.env.E2E_EMAIL?.trim()) {
+    await installLocalAuth(page, seeded);
+  }
   await page.goto('/auth');
   await page.getByLabel('Email Address').fill(email);
   await page.getByLabel('Password').fill(password);
@@ -61,8 +70,29 @@ async function drawStroke(page: Page, index: number): Promise<void> {
 }
 
 async function openChat(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Open sidebar' }).click();
+  const open = page.getByRole('button', { name: 'Open sidebar' });
+  if (await open.isVisible()) await open.click();
   await page.getByRole('button', { name: 'Chat' }).click();
+}
+
+/** Room state has arrived. The sidebar is closed so later strokes hit the canvas. */
+async function waitUntilJoined(page: Page): Promise<void> {
+  const open = page.getByRole('button', { name: 'Open sidebar' });
+  if (await open.isVisible()) await open.click();
+  await expect(page.getByText('No users online')).toHaveCount(0);
+  const close = page.getByRole('button', { name: 'Close sidebar' });
+  if (await close.isVisible()) await close.click();
+}
+
+async function waitForStoredOps(roomId: string, token: string): Promise<void> {
+  await expect.poll(async () => {
+    const res = await fetch(`http://localhost:8080/api/v1/rooms/${roomId}/board/history`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return 0;
+    const body = await res.json() as { ops?: unknown[] };
+    return body.ops?.length ?? 0;
+  }, { timeout: 10_000 }).toBeGreaterThan(0);
 }
 
 test.describe('authenticated collaboration', () => {
@@ -71,10 +101,13 @@ test.describe('authenticated collaboration', () => {
     test.skip(!creds, skipReason);
     if (!creds) return;
     await login(page, creds.email, creds.password);
-    await createRoom(page);
+    const roomId = await createRoom(page);
     await expect(page.locator('canvas')).toBeVisible();
+    await waitUntilJoined(page);
     for (let i = 0; i < 10; i++) await drawStroke(page, i);
     await expect.poll(() => ink(page), { timeout: 10_000 }).toBeGreaterThan(0);
+    const token = loadSeed().find((user) => user.role === 'admin')?.token ?? '';
+    await waitForStoredOps(roomId, token);
     const before = await ink(page);
     await page.reload();
     await expect(page.locator('canvas')).toBeVisible();
@@ -95,13 +128,15 @@ test.describe('authenticated collaboration', () => {
       await login(b, creds.email, creds.password);
       await b.goto(`/canva/${roomId}`);
       await expect(b.locator('canvas')).toBeVisible();
+      await waitUntilJoined(a);
+      await waitUntilJoined(b);
       const before = await ink(b);
       await drawStroke(a, 0);
       await expect.poll(() => ink(b), { timeout: 2_000 }).toBeGreaterThan(before);
       await openChat(a);
       await openChat(b);
       const body = `sync-${Date.now()}`;
-      await b.getByLabel('Message').fill(body);
+      await b.getByRole('textbox', { name: 'Message' }).fill(body);
       await b.getByRole('button', { name: 'Send message' }).click();
       await expect(a.getByText(body)).toBeVisible({ timeout: 2_000 });
     } finally {
@@ -123,6 +158,8 @@ test.describe('authenticated collaboration', () => {
       const roomId = await createRoom(a);
       await login(b, creds.email, creds.password);
       await b.goto(`/canva/${roomId}`);
+      await waitUntilJoined(a);
+      await waitUntilJoined(b);
       await expect(a.getByRole('button', { name: 'Undo' })).toBeVisible();
       await drawStroke(a, 2);
       await expect.poll(() => ink(b), { timeout: 2_000 }).toBeGreaterThan(0);
@@ -150,9 +187,13 @@ test.describe('authenticated collaboration', () => {
       const Wrapped = class extends Native {
         constructor(url: string | URL, protocols?: string | string[]) {
           super(url, protocols);
+          this.binaryType = 'arraybuffer';
           sockets.push(this);
           this.addEventListener('message', (ev) => {
             if (ev.data instanceof ArrayBuffer) frames.push(new Uint8Array(ev.data));
+            else if (ev.data instanceof Blob) {
+              void ev.data.arrayBuffer().then((buf) => frames.push(new Uint8Array(buf)));
+            }
           });
         }
       };
@@ -174,10 +215,13 @@ test.describe('authenticated collaboration', () => {
       const payload = Array.from(undoEnvelope(roomId));
       const rejected = await guestPage.evaluate(async (bytes) => {
         const win = window as unknown as { __wbSockets: WebSocket[]; __wbFrames: Uint8Array[] };
-        const socket = win.__wbSockets.find((item) => item.readyState === WebSocket.OPEN);
-        if (!socket) return { error: 'no open socket' };
+        const open = win.__wbSockets.filter((item) => item.readyState === WebSocket.OPEN);
+        if (open.length === 0) {
+          return { error: 'no open socket', sockets: win.__wbSockets.map((item) => item.readyState) };
+        }
         const before = win.__wbFrames.length;
-        socket.send(new Uint8Array(bytes));
+        const bytesOut = new Uint8Array(bytes);
+        for (const socket of open) socket.send(bytesOut);
         const deadline = Date.now() + 5_000;
         while (Date.now() < deadline) {
           if (win.__wbFrames.length > before) {
@@ -185,7 +229,12 @@ test.describe('authenticated collaboration', () => {
           }
           await new Promise((resolve) => setTimeout(resolve, 50));
         }
-        return { error: 'no server frame' };
+        return {
+          error: 'no server frame',
+          before,
+          after: win.__wbFrames.length,
+          sockets: open.map((item) => ({ ready: item.readyState, binary: item.binaryType, buffered: item.bufferedAmount })),
+        };
       }, payload);
       expect(rejected.error, JSON.stringify(rejected)).toBeUndefined();
       const frames = (rejected.frames ?? []).map((frame) => Uint8Array.from(frame));
