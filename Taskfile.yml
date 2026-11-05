@@ -83,3 +83,13 @@ tasks:
     desc: Fail when pkg coverage is under 80% or any service module is under 70%
     cmds:
       - powershell -NoProfile -File scripts/coverage-gate.ps1
+
+  kind-up:
+    desc: Create the local kind cluster and install the Helm stack
+    cmds:
+      - powershell -NoProfile -File deploy/k8s/kind-up.ps1
+
+  kind-down:
+    desc: Delete the local kind cluster
+    cmds:
+      - kind delete cluster --name whiteboard

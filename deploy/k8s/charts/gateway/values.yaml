@@ -1,0 +1,39 @@
+replicaCount: 2
+
+image:
+  repository: whiteboard-gateway
+  tag: dev
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8080
+
+# Container requests match the chart contract. Limits bound a noisy pod.
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+# Non-secret environment. Keys are process env names (services/gateway/internal/config).
+env: {}
+
+# Secret-backed environment. Each item is one env var from a Secret key.
+# Example:
+# secrets:
+#   - name: SUPABASE_JWT_ISSUER
+#     secretName: whiteboard-supabase
+#     key: issuer
+#   - name: SUPABASE_JWKS_URL
+#     secretName: whiteboard-supabase
+#     key: jwksUrl
+secrets: []
+
+ingress:
+  enabled: false
+  className: nginx
+
+# Render a ServiceMonitor only when the Prometheus operator CRDs are installed.
+serviceMonitor: false

@@ -1,0 +1,5 @@
+# Kind install. task kind-up passes this file after values.yaml.
+gateway:
+  ingress:
+    enabled: true
+    className: nginx

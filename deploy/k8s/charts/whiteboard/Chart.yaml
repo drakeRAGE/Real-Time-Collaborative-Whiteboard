@@ -1,0 +1,27 @@
+apiVersion: v2
+name: whiteboard
+description: Realtime whiteboard stack
+type: application
+version: 0.1.0
+dependencies:
+  - name: gateway
+    version: 0.1.0
+    repository: file://../gateway
+  - name: room
+    version: 0.1.0
+    repository: file://../room
+  - name: board
+    version: 0.1.0
+    repository: file://../board
+  - name: chat
+    version: 0.1.0
+    repository: file://../chat
+  - name: presence
+    version: 0.1.0
+    repository: file://../presence
+  - name: nats
+    version: 2.15.2
+    repository: https://nats-io.github.io/k8s/helm/charts/
+  - name: redis
+    version: 28.3.12
+    repository: https://charts.bitnami.com/bitnami

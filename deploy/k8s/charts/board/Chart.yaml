@@ -1,0 +1,6 @@
+apiVersion: v2
+name: board
+description: Board op-log consumer
+type: application
+version: 0.1.0
+appVersion: "dev"

@@ -7,6 +7,7 @@ dist/
 coverage/
 *.test
 graphify-out
+deploy/k8s/charts/whiteboard/charts/*.tgz
 .cursor/*
 !.cursor/skills/
 !.cursor/skills/**

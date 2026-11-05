@@ -1,0 +1,24 @@
+dependencies:
+- name: gateway
+  repository: file://../gateway
+  version: 0.1.0
+- name: room
+  repository: file://../room
+  version: 0.1.0
+- name: board
+  repository: file://../board
+  version: 0.1.0
+- name: chat
+  repository: file://../chat
+  version: 0.1.0
+- name: presence
+  repository: file://../presence
+  version: 0.1.0
+- name: nats
+  repository: https://nats-io.github.io/k8s/helm/charts/
+  version: 2.15.2
+- name: redis
+  repository: https://charts.bitnami.com/bitnami
+  version: 28.3.12
+digest: sha256:79864ef61fb1dbc4b4262577709f17d10a1015d47565db4ce7a45d332260a020
+generated: "2026-11-05T17:51:15.5686335+05:30"

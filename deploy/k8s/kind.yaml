@@ -1,0 +1,27 @@
+# One control-plane and two workers. The default CNI is off so kind-up can
+# install Calico, which enforces NetworkPolicy. Ingress-nginx runs with
+# hostNetwork on the control-plane; 8088 and 8443 are the host ports.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: whiteboard
+networking:
+  disableDefaultCNI: true
+  podSubnet: 192.168.0.0/16
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            - name: node-labels
+              value: ingress-ready=true
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 8088
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 8443
+        protocol: TCP
+  - role: worker
+  - role: worker

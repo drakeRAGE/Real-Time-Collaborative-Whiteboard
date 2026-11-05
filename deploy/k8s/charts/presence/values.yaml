@@ -1,0 +1,16 @@
+replicaCount: 1
+image:
+  repository: whiteboard-presence
+  tag: dev
+  pullPolicy: IfNotPresent
+service:
+  port: 8004
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+env: {}
+secrets: []
