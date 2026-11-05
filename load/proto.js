@@ -151,10 +151,24 @@ function walk(buf) {
 
 function asBytes(data) {
   if (data instanceof Uint8Array) return data;
+  if (typeof data === 'string') {
+    const out = new Uint8Array(data.length);
+    for (let i = 0; i < data.length; i++) out[i] = data.charCodeAt(i) & 0xff;
+    return out;
+  }
+  if (data && data.buffer && typeof data.byteLength === 'number' && typeof data.byteOffset === 'number') {
+    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+  }
   return new Uint8Array(data);
 }
 
-/** @returns {{kind:string, code?:number, stamp?:{x:number,y:number}}} */
+function textOf(bytes) {
+  let out = '';
+  for (let i = 0; i < bytes.length; i++) out += String.fromCharCode(bytes[i]);
+  return out;
+}
+
+/** @returns {{kind:string, code?:number, userId?:string, stamp?:{x:number,y:number}}} */
 export function classify(data) {
   const top = walk(asBytes(data));
   const stroke = top.find((field) => field.field === 13 && field.bytes);
@@ -162,14 +176,16 @@ export function classify(data) {
     const added = walk(stroke.bytes);
     const body = added.find((field) => field.field === 1 && field.bytes);
     if (!body) return { kind: 'stroke' };
-    const points = walk(body.bytes).filter((field) => field.field === 4 && field.bytes);
+    const fields = walk(body.bytes);
+    const user = fields.find((field) => field.field === 3 && field.bytes);
+    const points = fields.filter((field) => field.field === 4 && field.bytes);
     const first = points[0];
-    if (!first) return { kind: 'stroke' };
+    if (!first) return { kind: 'stroke', userId: user ? textOf(user.bytes) : '' };
     const coords = walk(first.bytes);
     const x = coords.find((field) => field.field === 1 && field.number !== undefined);
     const y = coords.find((field) => field.field === 2 && field.number !== undefined);
-    if (!x || !y) return { kind: 'stroke' };
-    return { kind: 'stroke', stamp: { x: x.number, y: y.number } };
+    if (!x || !y) return { kind: 'stroke', userId: user ? textOf(user.bytes) : '' };
+    return { kind: 'stroke', userId: user ? textOf(user.bytes) : '', stamp: { x: x.number, y: y.number } };
   }
   const err = top.find((field) => field.field === 2 && field.bytes);
   if (err) {

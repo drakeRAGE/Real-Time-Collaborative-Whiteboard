@@ -7,7 +7,7 @@
 // K6_PROFILE=smoke caps the ramp at 20 VUs for 30s.
 
 import ws from 'k6/ws';
-import { check } from 'k6';
+import { check, sleep } from 'k6';
 import { Counter, Trend, Rate } from 'k6/metrics';
 import { classify, cursorEnvelope, joinEnvelope, latencyFromStamp, stampPoint, strokeEnvelope, ulid } from './proto.js';
 
@@ -26,7 +26,13 @@ if (!__ENV.K6_PLAN) {
   );
 }
 
-const plan = JSON.parse(open(__ENV.K6_PLAN));
+let planText = open(__ENV.K6_PLAN);
+if (planText.charCodeAt(0) === 0xfeff) {
+  planText = planText.slice(1);
+} else if (planText.charCodeAt(0) === 0xef && planText.charCodeAt(1) === 0xbb && planText.charCodeAt(2) === 0xbf) {
+  planText = planText.slice(3);
+}
+const plan = JSON.parse(planText);
 if (!plan.ws || !Array.isArray(plan.vus) || plan.vus.length === 0) {
   throw new Error('K6_PLAN must be JSON with ws and a non-empty vus array');
 }
@@ -52,20 +58,38 @@ function stages() {
   ];
 }
 
+const sessionMs = Number(__ENV.K6_SESSION_MS || (smoke ? 12000 : 20000));
+
 export const options = {
   scenarios: {
     fanout: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: stages(),
-      gracefulRampDown: '10s',
+      gracefulRampDown: '15s',
+      gracefulStop: '30s',
     },
   },
   thresholds: {
     fanout_latency: ['p(99)<150'],
+    fanout_samples: ['count>0'],
     errors: ['rate<0.001'],
   },
 };
+
+function onFrame(data, selfId) {
+  const msg = classify(data);
+  if (msg.kind === 'ack' || msg.kind === 'error') {
+    errors.add(msg.code ? 1 : 0);
+    return;
+  }
+  // Only another user's echo is fan-out. A same-millisecond self-echo is 0ms and
+  // hid the real duration when no iteration was allowed to finish.
+  if (msg.kind === 'stroke' && msg.stamp && msg.userId && msg.userId !== selfId) {
+    fanoutSamples.add(1);
+    fanoutLatency.add(latencyFromStamp(msg.stamp, Date.now()));
+  }
+}
 
 export default function () {
   const slot = plan.vus[(__VU - 1) % plan.vus.length];
@@ -76,17 +100,10 @@ export default function () {
     },
   };
   const res = ws.connect(plan.ws, params, (socket) => {
-    socket.on('binaryMessage', (data) => {
-      const msg = classify(data);
-      if (msg.kind === 'ack' || msg.kind === 'error') {
-        errors.add(msg.code ? 1 : 0);
-        return;
-      }
-      if (msg.kind === 'stroke' && msg.stamp) {
-        fanoutSamples.add(1);
-        fanoutLatency.add(latencyFromStamp(msg.stamp, Date.now()));
-      }
-    });
+    // Close before the scenario interrupts the VU, or k6 reports no finished iteration
+    // and an empty time trend as p99=0s.
+    socket.setTimeout(() => socket.close(), sessionMs);
+    socket.on('binaryMessage', (data) => onFrame(data, slot.userId));
     socket.on('open', () => {
       socket.sendBinary(joinEnvelope(slot.roomId, ulid(Date.now())));
       // Join is synchronous on the gateway. Strokes sent before it acks are rejected.
@@ -103,5 +120,13 @@ export default function () {
     });
   });
   const ok = check(res, { 'ws upgrade 101': (r) => r && r.status === 101 });
-  if (!ok) errors.add(1);
+  if (!ok) {
+    errors.add(1);
+    if (__ITER === 0) {
+      console.log('upgrade status ' + (res && res.status) + ' error ' + (res && res.error));
+    }
+    // A refused handshake returns immediately. Sleeping keeps one VU from
+    // opening hundreds of sockets before the next stage.
+    sleep(Math.max(1, sessionMs / 1000));
+  }
 }
