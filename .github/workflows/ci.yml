@@ -1,0 +1,330 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.filter.outputs.go }}
+      proto: ${{ steps.filter.outputs.proto }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      security: ${{ steps.filter.outputs.security }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          token: ${{ github.token }}
+          filters: |
+            go:
+              - '**/*.go'
+              - '**/go.mod'
+              - '**/go.sum'
+              - 'Taskfile.yml'
+              - 'scripts/**'
+              - '.golangci.yml'
+            proto:
+              - 'proto/**'
+              - 'buf.yaml'
+              - 'buf.gen.yaml'
+              - 'buf.lock'
+              - 'gen/**'
+              - 'frontend/src/realtime/gen/**'
+            frontend:
+              - 'frontend/**'
+            security:
+              - '**'
+
+  go:
+    needs: changes
+    if: needs.changes.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            services/gateway/go.sum
+            services/room/go.sum
+            services/board/go.sum
+            services/chat/go.sum
+            services/presence/go.sum
+            pkg/config/go.sum
+            pkg/logger/go.sum
+            pkg/authn/go.sum
+            pkg/natsx/go.sum
+            pkg/redisx/go.sum
+            pkg/otelx/go.sum
+            pkg/grpcx/go.sum
+      - uses: arduino/setup-task@v2
+      - name: Provide powershell for Taskfile
+        run: |
+          set -euo pipefail
+          if ! command -v pwsh >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y wget apt-transport-https software-properties-common
+            wget -q https://packages.microsoft.com/config/ubuntu/$(. /etc/os-release && echo "$VERSION_ID")/packages-microsoft-prod.deb
+            sudo dpkg -i packages-microsoft-prod.deb
+            sudo apt-get update
+            sudo apt-get install -y powershell
+          fi
+          if ! command -v powershell >/dev/null 2>&1; then
+            sudo ln -sf "$(command -v pwsh)" /usr/local/bin/powershell
+          fi
+      - name: Install golangci-lint
+        run: |
+          set -euo pipefail
+          version=2.10.1
+          curl -sSfL -o /tmp/golangci.tar.gz "https://github.com/golangci/golangci-lint/releases/download/v${version}/golangci-lint-${version}-linux-amd64.tar.gz"
+          sudo tar -xzf /tmp/golangci.tar.gz -C /usr/local/bin --strip-components=1 "golangci-lint-${version}-linux-amd64/golangci-lint"
+          golangci-lint version
+      - name: Lint
+        run: task lint
+      - name: Unit tests
+        run: task test
+      - name: Integration tests
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: true
+        run: powershell -NoProfile -File scripts/go-each-module.ps1 -Command "go test -tags=integration -count=1 ./..."
+
+  proto:
+    needs: changes
+    if: needs.changes.outputs.proto == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch main for buf breaking
+        run: git fetch origin main:refs/heads/main
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: arduino/setup-task@v2
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+      - name: Install pinned protoc plugins
+        run: |
+          set -euo pipefail
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
+      - run: buf lint
+      # buf accepts a git input, not a raw origin/main token. This ref is the main branch just fetched.
+      - run: buf breaking --against '.git#branch=main'
+      - run: task proto
+      - name: Generated code is clean
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          extra=$(git status --porcelain | grep -v 'node_modules' || true)
+          if [ -n "$extra" ]; then
+            printf '%s\n' "$extra"
+            exit 1
+          fi
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  security:
+    needs: changes
+    if: needs.changes.outputs.security == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Phase 10 scripts call `powershell`, refuse to pull images, and build
+      # gosec/govulncheck from a module cache that must already be warm.
+      - name: Use the runner home for scanner scripts
+        run: |
+          echo "USERPROFILE=$HOME" >> "$GITHUB_ENV"
+          echo "GOPATH=$HOME/go" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            services/gateway/go.sum
+            services/room/go.sum
+            services/board/go.sum
+            services/chat/go.sum
+            services/presence/go.sum
+            pkg/config/go.sum
+            pkg/logger/go.sum
+            pkg/authn/go.sum
+            pkg/natsx/go.sum
+            pkg/redisx/go.sum
+            pkg/otelx/go.sum
+            pkg/grpcx/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: arduino/setup-task@v2
+      - name: Provide powershell for Taskfile
+        run: |
+          set -euo pipefail
+          if ! command -v pwsh >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y wget apt-transport-https software-properties-common
+            wget -q https://packages.microsoft.com/config/ubuntu/$(. /etc/os-release && echo "$VERSION_ID")/packages-microsoft-prod.deb
+            sudo dpkg -i packages-microsoft-prod.deb
+            sudo apt-get update
+            sudo apt-get install -y powershell
+          fi
+          if ! command -v powershell >/dev/null 2>&1; then
+            sudo ln -sf "$(command -v pwsh)" /usr/local/bin/powershell
+          fi
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          version=8.21.2
+          curl -sSfL -o /tmp/gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${version}/gitleaks_${version}_linux_x64.tar.gz"
+          sudo tar -xzf /tmp/gitleaks.tar.gz -C /usr/local/bin gitleaks
+          gitleaks version
+      - name: Pull the scanner image the Taskfile expects
+        run: docker pull golang:1.26-alpine
+      - name: Warm the module cache the scanner scripts require
+        run: |
+          set -euo pipefail
+          modules=(
+            .
+            services/gateway
+            services/room
+            services/board
+            services/chat
+            services/presence
+            pkg/config
+            pkg/logger
+            pkg/authn
+            pkg/natsx
+            pkg/redisx
+            pkg/otelx
+            pkg/grpcx
+          )
+          for module in "${modules[@]}"; do
+            (cd "$module" && go mod download)
+          done
+          go mod download github.com/securego/gosec/v2@v2.22.10
+          go mod download golang.org/x/vuln@v1.9.0
+          cache="$(go env GOMODCACHE)"
+          (cd "$cache/github.com/securego/gosec/v2@v2.22.10" && go mod download)
+          (cd "$cache/golang.org/x/vuln@v1.9.0" && go mod download)
+      - run: task security-gosec
+      - run: task security-govulncheck
+      - run: task security-gitleaks
+      - run: task security-npm
+
+  commits:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name != 'pull_request'
+        with:
+          fetch-depth: 0
+      - name: Conventional commits
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          pattern='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([A-Za-z0-9_.-]+\))?!?: .+'
+          # Pull requests are gated on the title. Squash merge then lands that title on main.
+          # Pushes to main are gated on the commits just pushed.
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            subjects="$PR_TITLE"
+          elif [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            subjects=$(git log -1 --format=%s "$SHA")
+          else
+            subjects=$(git log --format=%s "${BEFORE}..${SHA}")
+          fi
+          if [ -z "$subjects" ]; then
+            echo "no commit subjects found"
+            exit 1
+          fi
+          failing=0
+          while IFS= read -r subject; do
+            [ -z "$subject" ] && continue
+            if ! printf '%s\n' "$subject" | grep -Eq "$pattern"; then
+              echo "not a conventional commit: $subject"
+              failing=1
+            else
+              echo "ok: $subject"
+            fi
+          done <<< "$subjects"
+          exit "$failing"
+
+  required:
+    if: always()
+    needs: [changes, go, proto, frontend, security, commits]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail when a CI job failed
+        run: |
+          set -euo pipefail
+          for result in \
+            "${{ needs.changes.result }}" \
+            "${{ needs.go.result }}" \
+            "${{ needs.proto.result }}" \
+            "${{ needs.frontend.result }}" \
+            "${{ needs.security.result }}" \
+            "${{ needs.commits.result }}"
+          do
+            case "$result" in
+              success|skipped) ;;
+              *)
+                echo "unexpected job result: $result"
+                exit 1
+                ;;
+            esac
+          done

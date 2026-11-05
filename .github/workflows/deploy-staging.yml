@@ -1,0 +1,33 @@
+name: Deploy staging
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  staging:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Trigger Render deploy hooks
+        env:
+          RENDER_DEPLOY_HOOKS: ${{ secrets.RENDER_DEPLOY_HOOKS }}
+        run: |
+          set -euo pipefail
+          test -n "$RENDER_DEPLOY_HOOKS"
+          printf '%s' "$RENDER_DEPLOY_HOOKS" | tr ',' '\n' | sed '/^$/d' | xargs -r -n1 curl --fail --silent --show-error -X POST
+
+  production:
+    needs: staging
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Record production approval
+        run: echo "Production environment approved. Promote the staging release in Render."

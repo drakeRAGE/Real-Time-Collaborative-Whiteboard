@@ -1,0 +1,55 @@
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    if: github.event_name == 'push' || github.event.label.name == 'run-e2e'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            e2e/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Install e2e dependencies
+        working-directory: e2e
+        run: npm ci
+      - name: Install Playwright Chromium
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+      - name: Start the compose stack
+        run: docker compose -f deploy/compose/docker-compose.yml up -d --build --wait
+      - name: Playwright
+        working-directory: e2e
+        run: npx playwright test
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: |
+            e2e/test-results
+            e2e/playwright-report
+          if-no-files-found: ignore
+      - name: Stop the compose stack
+        if: always()
+        run: docker compose -f deploy/compose/docker-compose.yml down -v

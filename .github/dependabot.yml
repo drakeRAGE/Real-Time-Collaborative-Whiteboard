@@ -1,0 +1,90 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule: { interval: weekly }
+    groups: { gomod: { patterns: ["*"] } }
+  - package-ecosystem: gomod
+    directory: "/services/gateway"
+    schedule: { interval: weekly }
+    groups: { gomod: { patterns: ["*"] } }
+  - package-ecosystem: gomod
+    directory: "/services/room"
+    schedule: { interval: weekly }
+    groups: { gomod: { patterns: ["*"] } }
+  - package-ecosystem: gomod
+    directory: "/services/board"
+    schedule: { interval: weekly }
+    groups: { gomod: { patterns: ["*"] } }
+  - package-ecosystem: gomod
+    directory: "/services/chat"
+    schedule: { interval: weekly }
+    groups: { gomod: { patterns: ["*"] } }
+  - package-ecosystem: gomod
+    directory: "/services/presence"
+    schedule: { interval: weekly }
+    groups: { gomod: { patterns: ["*"] } }
+  - package-ecosystem: gomod
+    directory: "/pkg/config"
+    schedule: { interval: weekly }
+    groups: { gomod: { patterns: ["*"] } }
+  - package-ecosystem: gomod
+    directory: "/pkg/logger"
+    schedule: { interval: weekly }
+    groups: { gomod: { patterns: ["*"] } }
+  - package-ecosystem: gomod
+    directory: "/pkg/authn"
+    schedule: { interval: weekly }
+    groups: { gomod: { patterns: ["*"] } }
+  - package-ecosystem: gomod
+    directory: "/pkg/natsx"
+    schedule: { interval: weekly }
+    groups: { gomod: { patterns: ["*"] } }
+  - package-ecosystem: gomod
+    directory: "/pkg/redisx"
+    schedule: { interval: weekly }
+    groups: { gomod: { patterns: ["*"] } }
+  - package-ecosystem: gomod
+    directory: "/pkg/otelx"
+    schedule: { interval: weekly }
+    groups: { gomod: { patterns: ["*"] } }
+  - package-ecosystem: gomod
+    directory: "/pkg/grpcx"
+    schedule: { interval: weekly }
+    groups: { gomod: { patterns: ["*"] } }
+  - package-ecosystem: gomod
+    directory: "/load/harness"
+    schedule: { interval: weekly }
+    groups: { gomod: { patterns: ["*"] } }
+  - package-ecosystem: npm
+    directory: "/frontend"
+    schedule: { interval: weekly }
+    groups: { npm: { patterns: ["*"] } }
+  - package-ecosystem: npm
+    directory: "/e2e"
+    schedule: { interval: weekly }
+    groups: { npm: { patterns: ["*"] } }
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule: { interval: weekly }
+    groups: { actions: { patterns: ["*"] } }
+  - package-ecosystem: docker
+    directory: "/services/gateway"
+    schedule: { interval: weekly }
+    groups: { docker: { patterns: ["*"] } }
+  - package-ecosystem: docker
+    directory: "/services/room"
+    schedule: { interval: weekly }
+    groups: { docker: { patterns: ["*"] } }
+  - package-ecosystem: docker
+    directory: "/services/board"
+    schedule: { interval: weekly }
+    groups: { docker: { patterns: ["*"] } }
+  - package-ecosystem: docker
+    directory: "/services/chat"
+    schedule: { interval: weekly }
+    groups: { docker: { patterns: ["*"] } }
+  - package-ecosystem: docker
+    directory: "/services/presence"
+    schedule: { interval: weekly }
+    groups: { docker: { patterns: ["*"] } }
