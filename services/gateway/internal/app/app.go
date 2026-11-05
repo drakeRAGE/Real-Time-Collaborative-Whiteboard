@@ -16,6 +16,8 @@ import (
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc/connectivity"
 
+	boardv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/board/v1"
+	chatv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/chat/v1"
 	roomv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/room/v1"
 	"github.com/drakeRAGE/realtime-whiteboard/pkg/authn"
 	"github.com/drakeRAGE/realtime-whiteboard/pkg/grpcx"
@@ -33,17 +35,19 @@ import (
 
 // App is one gateway process.
 type App struct {
-	log      zerolog.Logger
-	handler  http.Handler
-	http     *http.Server
-	hub      *ws.Hub
-	fan      *fanout.Fanout
-	nc       *nats.Conn
-	rdb      *redis.Client
-	roomConn *grpc.ClientConn
-	notReady atomic.Bool
-	serving  atomic.Bool
-	once     sync.Once
+	log       zerolog.Logger
+	handler   http.Handler
+	http      *http.Server
+	hub       *ws.Hub
+	fan       *fanout.Fanout
+	nc        *nats.Conn
+	rdb       *redis.Client
+	roomConn  *grpc.ClientConn
+	boardConn *grpc.ClientConn
+	chatConn  *grpc.ClientConn
+	notReady  atomic.Bool
+	serving   atomic.Bool
+	once      sync.Once
 }
 
 // Handler is the HTTP router, including /ws.
@@ -90,6 +94,24 @@ func New(ctx context.Context, cfg gwcfg.Config, log zerolog.Logger) (*App, error
 			_ = roomConn.Close()
 		}
 	}()
+	boardConn, err := grpcx.Dial(cfg.BoardGRPCAddr)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if !ok {
+			_ = boardConn.Close()
+		}
+	}()
+	chatConn, err := grpcx.Dial(cfg.ChatGRPCAddr)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if !ok {
+			_ = chatConn.Close()
+		}
+	}()
 	verifier, err := authn.New(ctx, authn.Config{
 		JWKSURL:    cfg.JWKSURL,
 		Issuer:     cfg.Issuer,
@@ -122,11 +144,13 @@ func New(ctx context.Context, cfg gwcfg.Config, log zerolog.Logger) (*App, error
 		hub.Shutdown(context.Background())
 		return nil, err
 	}
-	a := &App{log: log, hub: hub, fan: fan, nc: nc, rdb: rdb, roomConn: roomConn}
+	a := &App{log: log, hub: hub, fan: fan, nc: nc, rdb: rdb, roomConn: roomConn, boardConn: boardConn, chatConn: chatConn}
 	a.handler = httpapi.New(httpapi.Deps{
 		Log:         log,
 		Verify:      verifier,
 		Rooms:       rooms,
+		Boards:      boardv1.NewBoardServiceClient(boardConn),
+		Chats:       chatv1.NewChatServiceClient(chatConn),
 		Ready:       a.ready,
 		Hub:         hub,
 		FrontendURL: cfg.FrontendURL,
@@ -177,6 +201,12 @@ func (a *App) Shutdown(ctx context.Context) error {
 		}
 		if a.roomConn != nil {
 			_ = a.roomConn.Close()
+		}
+		if a.boardConn != nil {
+			_ = a.boardConn.Close()
+		}
+		if a.chatConn != nil {
+			_ = a.chatConn.Close()
 		}
 		if a.rdb != nil {
 			_ = a.rdb.Close()

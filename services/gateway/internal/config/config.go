@@ -9,23 +9,25 @@ import (
 
 // Config is loaded from the environment by pkg/config.
 type Config struct {
-	HTTPAddr     string `env:"HTTP_ADDR" envDefault:":8080"`
-	NATSURL      string `env:"NATS_URL,required"`
-	RedisAddr    string `env:"REDIS_ADDR,required"`
-	RoomGRPCAddr string `env:"ROOM_GRPC_ADDR" envDefault:"localhost:7001"`
-	FrontendURL  string `env:"FRONTEND_URL,required"`
-	JWKSURL      string `env:"SUPABASE_JWKS_URL"`
-	Issuer       string `env:"SUPABASE_JWT_ISSUER,required"`
-	Audience     string `env:"SUPABASE_JWT_AUDIENCE" envDefault:"authenticated"`
-	AllowHS256   bool   `env:"SUPABASE_JWT_ALLOW_HS256" envDefault:"false"`
-	HMACSecret   string `env:"SUPABASE_JWT_SECRET"`
-	LogLevel     string `env:"LOG_LEVEL" envDefault:"info"`
+	HTTPAddr      string `env:"HTTP_ADDR" envDefault:":8080"`
+	NATSURL       string `env:"NATS_URL,required"`
+	RedisAddr     string `env:"REDIS_ADDR,required"`
+	RoomGRPCAddr  string `env:"ROOM_GRPC_ADDR" envDefault:"localhost:7001"`
+	BoardGRPCAddr string `env:"BOARD_GRPC_ADDR" envDefault:"localhost:7002"`
+	ChatGRPCAddr  string `env:"CHAT_GRPC_ADDR" envDefault:"localhost:7003"`
+	FrontendURL   string `env:"FRONTEND_URL,required"`
+	JWKSURL       string `env:"SUPABASE_JWKS_URL"`
+	Issuer        string `env:"SUPABASE_JWT_ISSUER,required"`
+	Audience      string `env:"SUPABASE_JWT_AUDIENCE" envDefault:"authenticated"`
+	AllowHS256    bool   `env:"SUPABASE_JWT_ALLOW_HS256" envDefault:"false"`
+	HMACSecret    string `env:"SUPABASE_JWT_SECRET"`
+	LogLevel      string `env:"LOG_LEVEL" envDefault:"info"`
 }
 
 // Validate checks the public origin and the JWT mode.
 func (c Config) Validate() error {
-	if c.HTTPAddr == "" || c.RoomGRPCAddr == "" {
-		return errors.New("HTTP_ADDR and ROOM_GRPC_ADDR are required")
+	if c.HTTPAddr == "" || c.RoomGRPCAddr == "" || c.BoardGRPCAddr == "" || c.ChatGRPCAddr == "" {
+		return errors.New("HTTP_ADDR and ROOM/BOARD/CHAT gRPC addresses are required")
 	}
 	if err := checkOrigin(c.FrontendURL); err != nil {
 		return err

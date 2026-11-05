@@ -20,6 +20,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
+	boardv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/board/v1"
+	chatv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/chat/v1"
 	realtimev1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/realtime/v1"
 	roomv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/room/v1"
 	gwcfg "github.com/drakeRAGE/realtime-whiteboard/services/gateway/internal/config"
@@ -35,6 +37,8 @@ func TestServeShutdown(t *testing.T) {
 	}
 	gs := grpc.NewServer()
 	roomv1.RegisterRoomServiceServer(gs, fakeroom.New())
+	boardv1.RegisterBoardServiceServer(gs, fakeBoard{})
+	chatv1.RegisterChatServiceServer(gs, fakeChat{})
 	go func() { _ = gs.Serve(lis) }()
 	t.Cleanup(gs.Stop)
 
@@ -45,15 +49,17 @@ func TestServeShutdown(t *testing.T) {
 	origin := "http://" + httpLn.Addr().String()
 	const secret = "test-secret-at-least-32-bytes-long"
 	gateway, err := New(context.Background(), gwcfg.Config{
-		HTTPAddr:     httpLn.Addr().String(),
-		NATSURL:      nc.ConnectedUrl(),
-		RedisAddr:    mr.Addr(),
-		RoomGRPCAddr: lis.Addr().String(),
-		FrontendURL:  origin,
-		Issuer:       "http://issuer.test",
-		Audience:     "authenticated",
-		AllowHS256:   true,
-		HMACSecret:   secret,
+		HTTPAddr:      httpLn.Addr().String(),
+		NATSURL:       nc.ConnectedUrl(),
+		RedisAddr:     mr.Addr(),
+		RoomGRPCAddr:  lis.Addr().String(),
+		BoardGRPCAddr: lis.Addr().String(),
+		ChatGRPCAddr:  lis.Addr().String(),
+		FrontendURL:   origin,
+		Issuer:        "http://issuer.test",
+		Audience:      "authenticated",
+		AllowHS256:    true,
+		HMACSecret:    secret,
 	}, zerolog.Nop())
 	if err != nil {
 		t.Fatal(err)
@@ -175,6 +181,22 @@ func sign(t *testing.T, secret, sub string) string {
 		t.Fatal(err)
 	}
 	return string(signed)
+}
+
+type fakeBoard struct {
+	boardv1.UnimplementedBoardServiceServer
+}
+
+func (fakeBoard) GetHistory(context.Context, *boardv1.GetHistoryRequest) (*boardv1.GetHistoryResponse, error) {
+	return &boardv1.GetHistoryResponse{}, nil
+}
+
+type fakeChat struct {
+	chatv1.UnimplementedChatServiceServer
+}
+
+func (fakeChat) GetHistory(context.Context, *chatv1.GetHistoryRequest) (*chatv1.GetHistoryResponse, error) {
+	return &chatv1.GetHistoryResponse{}, nil
 }
 
 func startNATS(t *testing.T) *nats.Conn {

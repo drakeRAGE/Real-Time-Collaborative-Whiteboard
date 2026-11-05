@@ -23,6 +23,8 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	boardv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/board/v1"
+	chatv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/chat/v1"
 	roomv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/room/v1"
 	"github.com/drakeRAGE/realtime-whiteboard/pkg/authn"
 	"github.com/drakeRAGE/realtime-whiteboard/pkg/logger"
@@ -34,6 +36,8 @@ type Deps struct {
 	Log         zerolog.Logger
 	Verify      authn.Verifier
 	Rooms       roomv1.RoomServiceClient
+	Boards      boardv1.BoardServiceClient
+	Chats       chatv1.ChatServiceClient
 	Ready       func(context.Context) error
 	Hub         http.Handler
 	FrontendURL string
@@ -41,7 +45,7 @@ type Deps struct {
 
 // New returns the public handler.
 func New(deps Deps) http.Handler {
-	s := &api{log: deps.Log, verify: deps.Verify, rooms: deps.Rooms, ready: deps.Ready}
+	s := &api{log: deps.Log, verify: deps.Verify, rooms: deps.Rooms, boards: deps.Boards, chats: deps.Chats, ready: deps.Ready}
 	r := chi.NewRouter()
 	r.Use(requestID)
 	r.Use(securityHeaders)
@@ -71,6 +75,8 @@ func New(deps Deps) http.Handler {
 		r.Post("/rooms/{roomID}/invites", s.createInvite)
 		r.Post("/rooms/{roomID}/transfer", s.transferAdmin)
 		r.Post("/invites/validate", s.validateInvite)
+		r.Get("/rooms/{roomID}/board/history", s.boardHistory)
+		r.Get("/rooms/{roomID}/chat/history", s.chatHistory)
 	})
 	return r
 }
@@ -79,6 +85,8 @@ type api struct {
 	log    zerolog.Logger
 	verify authn.Verifier
 	rooms  roomv1.RoomServiceClient
+	boards boardv1.BoardServiceClient
+	chats  chatv1.ChatServiceClient
 	ready  func(context.Context) error
 }
 
@@ -248,6 +256,48 @@ func (a *api) transferAdmin(w http.ResponseWriter, r *http.Request) {
 	writeProto(w, http.StatusOK, resp)
 }
 
+func (a *api) boardHistory(w http.ResponseWriter, r *http.Request) {
+	if a.boards == nil {
+		writeJSON(w, http.StatusServiceUnavailable, errBody("UNAVAILABLE", "board history unavailable"))
+		return
+	}
+	roomID, ok := pathRoom(w, r)
+	if !ok {
+		return
+	}
+	user, _ := principal.From(r.Context())
+	resp, err := a.boards.GetHistory(user.GRPC(r.Context()), &boardv1.GetHistoryRequest{
+		RoomId: roomID,
+		Limit:  500,
+	})
+	if err != nil {
+		writeGRPC(w, err)
+		return
+	}
+	writeProto(w, http.StatusOK, resp)
+}
+
+func (a *api) chatHistory(w http.ResponseWriter, r *http.Request) {
+	if a.chats == nil {
+		writeJSON(w, http.StatusServiceUnavailable, errBody("UNAVAILABLE", "chat history unavailable"))
+		return
+	}
+	roomID, ok := pathRoom(w, r)
+	if !ok {
+		return
+	}
+	user, _ := principal.From(r.Context())
+	resp, err := a.chats.GetHistory(user.GRPC(r.Context()), &chatv1.GetHistoryRequest{
+		RoomId: roomID,
+		Limit:  200,
+	})
+	if err != nil {
+		writeGRPC(w, err)
+		return
+	}
+	writeProto(w, http.StatusOK, resp)
+}
+
 func (a *api) validateInvite(w http.ResponseWriter, r *http.Request) {
 	var req roomv1.ValidateInviteRequest
 	if !decode(w, r, &req) {
@@ -297,7 +347,7 @@ func writeProto(w http.ResponseWriter, code int, msg proto.Message) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	_, _ = w.Write(raw)
+	_, _ = w.Write(raw) //nolint:gosec // G705: protojson bytes, Content-Type is application/json
 }
 
 func writeGRPC(w http.ResponseWriter, err error) {

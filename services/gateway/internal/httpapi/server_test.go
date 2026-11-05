@@ -16,6 +16,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
 
+	boardv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/board/v1"
+	chatv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/chat/v1"
 	roomv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/room/v1"
 	"github.com/drakeRAGE/realtime-whiteboard/pkg/authn"
 	"github.com/drakeRAGE/realtime-whiteboard/services/gateway/internal/fakeroom"
@@ -137,6 +139,14 @@ func TestHTTPMatrix(t *testing.T) {
 	if badID.StatusCode != http.StatusBadRequest {
 		t.Fatalf("bad id %d", badID.StatusCode)
 	}
+	boardDown := get(t, srv.URL+"/api/v1/rooms/"+roomID+"/board/history", tokA, "")
+	if boardDown.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("board history without client %d %s", boardDown.StatusCode, boardDown.Body)
+	}
+	chatDown := get(t, srv.URL+"/api/v1/rooms/"+roomID+"/chat/history", tokA, "")
+	if chatDown.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("chat history without client %d %s", chatDown.StatusCode, chatDown.Body)
+	}
 
 	bad := do(t, http.MethodOptions, srv.URL+"/api/v1/rooms", "", "", "https://evil.example")
 	if bad.Header.Get("Access-Control-Allow-Origin") != "" {
@@ -149,6 +159,68 @@ func TestHTTPMatrix(t *testing.T) {
 	if strings.Contains(good.Header.Get("Access-Control-Allow-Origin"), "*") {
 		t.Fatal("wildcard cors")
 	}
+}
+
+func TestHistoryProxies(t *testing.T) {
+	ctx := context.Background()
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gs := grpc.NewServer()
+	boardv1.RegisterBoardServiceServer(gs, historyBoard{})
+	chatv1.RegisterChatServiceServer(gs, historyChat{})
+	go func() { _ = gs.Serve(lis) }()
+	t.Cleanup(gs.Stop)
+
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+
+	verifier, err := authn.New(ctx, authn.Config{
+		Issuer: issuer, Audience: "authenticated", AllowHS256: true, HMACSecret: secret,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := New(Deps{
+		Verify:      verifier,
+		Boards:      boardv1.NewBoardServiceClient(conn),
+		Chats:       chatv1.NewChatServiceClient(conn),
+		FrontendURL: origin,
+		Ready:       func(context.Context) error { return nil },
+	})
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	roomID := "33333333-3333-4333-8333-333333333333"
+	tok := token(t, userA, "ada@example.com")
+	board := get(t, srv.URL+"/api/v1/rooms/"+roomID+"/board/history", tok, "")
+	if board.StatusCode != http.StatusOK || !strings.Contains(board.Body, `"ops"`) {
+		t.Fatalf("board history %d %s", board.StatusCode, board.Body)
+	}
+	chat := get(t, srv.URL+"/api/v1/rooms/"+roomID+"/chat/history", tok, "")
+	if chat.StatusCode != http.StatusOK || !strings.Contains(chat.Body, `"messages"`) {
+		t.Fatalf("chat history %d %s", chat.StatusCode, chat.Body)
+	}
+}
+
+type historyBoard struct {
+	boardv1.UnimplementedBoardServiceServer
+}
+
+func (historyBoard) GetHistory(context.Context, *boardv1.GetHistoryRequest) (*boardv1.GetHistoryResponse, error) {
+	return &boardv1.GetHistoryResponse{}, nil
+}
+
+type historyChat struct {
+	chatv1.UnimplementedChatServiceServer
+}
+
+func (historyChat) GetHistory(context.Context, *chatv1.GetHistoryRequest) (*chatv1.GetHistoryResponse, error) {
+	return &chatv1.GetHistoryResponse{}, nil
 }
 
 func assertHeaders(t *testing.T, res result) {
@@ -195,7 +267,7 @@ func do(t *testing.T, method, url, rawToken, body, origin string) result {
 		req.Header.Set("Origin", origin)
 		req.Header.Set("Access-Control-Request-Method", http.MethodGet)
 	}
-	res, err := http.DefaultClient.Do(req)
+	res, err := http.DefaultClient.Do(req) //nolint:gosec // G704: url is the httptest server, not user input
 	if err != nil {
 		t.Fatal(err)
 	}

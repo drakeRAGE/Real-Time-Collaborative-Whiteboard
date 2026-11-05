@@ -27,6 +27,8 @@ gRPC calls carry `wb-user-id`. NATS publishes carry `Wb-User-Id` and
 | POST /api/v1/rooms/{roomID}/invites | JWT; admin via room-service |
 | POST /api/v1/rooms/{roomID}/transfer | JWT; admin via room-service |
 | POST /api/v1/invites/validate | JWT |
+| GET /api/v1/rooms/{roomID}/board/history | JWT; member via board-service GetHistory |
+| GET /api/v1/rooms/{roomID}/chat/history | JWT; member via chat-service GetHistory |
 
 ## WebSocket events
 

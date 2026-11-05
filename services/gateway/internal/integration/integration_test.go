@@ -29,6 +29,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	boardv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/board/v1"
+	chatv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/chat/v1"
 	realtimev1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/realtime/v1"
 	roomv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/room/v1"
 	"github.com/drakeRAGE/realtime-whiteboard/services/gateway/internal/app"
@@ -199,6 +200,8 @@ func startStack(t *testing.T) *stack {
 	}
 	gs := grpc.NewServer()
 	roomv1.RegisterRoomServiceServer(gs, fakeroom.New())
+	boardv1.RegisterBoardServiceServer(gs, fakeBoard{})
+	chatv1.RegisterChatServiceServer(gs, fakeChat{})
 	go func() { _ = gs.Serve(lis) }()
 	t.Cleanup(gs.Stop)
 
@@ -208,15 +211,17 @@ func startStack(t *testing.T) *stack {
 	}
 	origin := "http://" + httpLn.Addr().String()
 	gateway, err := app.New(ctx, gwcfg.Config{
-		HTTPAddr:     httpLn.Addr().String(),
-		NATSURL:      natsURL,
-		RedisAddr:    redisAddr,
-		RoomGRPCAddr: lis.Addr().String(),
-		FrontendURL:  origin,
-		Issuer:       issuer,
-		Audience:     "authenticated",
-		AllowHS256:   true,
-		HMACSecret:   secret,
+		HTTPAddr:      httpLn.Addr().String(),
+		NATSURL:       natsURL,
+		RedisAddr:     redisAddr,
+		RoomGRPCAddr:  lis.Addr().String(),
+		BoardGRPCAddr: lis.Addr().String(),
+		ChatGRPCAddr:  lis.Addr().String(),
+		FrontendURL:   origin,
+		Issuer:        issuer,
+		Audience:      "authenticated",
+		AllowHS256:    true,
+		HMACSecret:    secret,
 	}, zerolog.Nop())
 	if err != nil {
 		t.Fatal(err)
@@ -368,7 +373,7 @@ func createRoom(t *testing.T, rawURL, user string) string {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token(t, user))
-	res, err := http.DefaultClient.Do(req)
+	res, err := http.DefaultClient.Do(req) //nolint:gosec // G704: url is the test gateway, not user input
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -397,6 +402,22 @@ func dial(t *testing.T, rawURL string, protocols []string) *websocket.Conn {
 	}
 	t.Cleanup(func() { _ = conn.Close(websocket.StatusNormalClosure, "") })
 	return conn
+}
+
+type fakeBoard struct {
+	boardv1.UnimplementedBoardServiceServer
+}
+
+func (fakeBoard) GetHistory(context.Context, *boardv1.GetHistoryRequest) (*boardv1.GetHistoryResponse, error) {
+	return &boardv1.GetHistoryResponse{}, nil
+}
+
+type fakeChat struct {
+	chatv1.UnimplementedChatServiceServer
+}
+
+func (fakeChat) GetHistory(context.Context, *chatv1.GetHistoryRequest) (*chatv1.GetHistoryResponse, error) {
+	return &chatv1.GetHistoryResponse{}, nil
 }
 
 func writeEnv(t *testing.T, conn *websocket.Conn, env *realtimev1.ClientEnvelope) {

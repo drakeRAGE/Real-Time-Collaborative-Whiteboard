@@ -264,6 +264,8 @@ services:
       <<: [*nats, *redis, *otel]
       HTTP_ADDR: ":8080"
       ROOM_GRPC_ADDR: room-service:7001
+      BOARD_GRPC_ADDR: board:7002
+      CHAT_GRPC_ADDR: chat:7003
       FRONTEND_URL: http://localhost:5173
       SUPABASE_JWT_ISSUER: http://127.0.0.1:54321/auth/v1
       SUPABASE_JWT_AUDIENCE: authenticated
@@ -278,6 +280,10 @@ services:
       nats:
         condition: service_healthy
       room-service:
+        condition: service_healthy
+      board:
+        condition: service_healthy
+      chat:
         condition: service_healthy
       otel-collector:
         condition: service_healthy

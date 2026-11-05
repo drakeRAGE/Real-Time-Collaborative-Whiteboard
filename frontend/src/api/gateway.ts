@@ -44,10 +44,7 @@ export async function deleteRoom(token: string, roomId: string): Promise<void> {
   if (!res.ok) throw new Error(await errorMessage(res));
 }
 
-/**
- * Gateway REST history is not mounted yet (board/chat history stay on gRPC).
- * A non-OK response means "start empty"; live events still draw.
- */
+/** Loads persisted board ops via gateway REST (BoardService.GetHistory). */
 export async function loadBoardHistory(roomId: string, token: string): Promise<DrawOp[]> {
   try {
     const res = await fetch(`${backend()}/api/v1/rooms/${roomId}/board/history`, {
