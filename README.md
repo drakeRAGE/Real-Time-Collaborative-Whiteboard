@@ -1,460 +1,135 @@
-# Whiteboard - Real Time Collaboration
+# Realtime Whiteboard
 
-[![Hacktoberfest](https://img.shields.io/badge/Hacktoberfest-2025-blueviolet?style=for-the-badge&logo=hacktoberfest)](https://hacktoberfest.com)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](./LICENSE)
-[![Open Issues](https://img.shields.io/github/issues/drakeRAGE/Real-Time-Collaborative-Whiteboard?style=for-the-badge)](https://github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard/issues)
-[![Stars](https://img.shields.io/github/stars/drakeRAGE/Real-Time-Collaborative-Whiteboard?style=for-the-badge)](https://github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard/stargazers)
-[![Forks](https://img.shields.io/github/forks/drakeRAGE/Real-Time-Collaborative-Whiteboard?style=for-the-badge)](https://github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard/network/members)
+[![CI](https://github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard/actions/workflows/ci.yml/badge.svg)](https://github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard/actions/workflows/ci.yml)
+[![coverage gate](https://img.shields.io/badge/coverage%20gate-pkg%2080%25%20%2F%20services%2070%25-blue)](scripts/coverage-gate.ps1)
+[![Go Report Card](https://goreportcard.com/badge/github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard)](https://goreportcard.com/report/github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard)
 
-Collaborative Whiteboard is a real-time interactive platform that enables teams to brainstorm, design, and communicate seamlessly through a shared digital workspace. Combining whiteboard drawing tools with video conferencing and chat functionality, it provides a comprehensive solution for remote collaboration, online education, and creative teamwork.
+Collaborative whiteboard: five Go services, gRPC, NATS JetStream, native protobuf WebSockets, Postgres, Redis, and a React 19 client. Module prefix: `github.com/drakeRAGE/realtime-whiteboard` (`docs/OWNER.md`).
 
-## 🚀 Live Demo
+## Architecture
 
-[https://real-time-collaborative-whiteboard-xkh3.onrender.com](https://real-time-collaborative-whiteboard-xkh3.onrender.com)
-
-## ✨ Features
-
-- **User Authentication**:
-  - Secure registration with email/password
-  - JWT token generation and validation
-  - Supabase integration for auth services
-  - Socket authentication middleware
-
-- **Room Management**:
-  - Room creation with unique IDs
-  - Join room functionality
-  - Room persistence in database
-  - Room participant tracking
-
-- **Real-time Collaboration**:
-  - WebSocket connections for live updates
-  - Drawing synchronization between users
-  - Cursor position sharing
-  - Presence indicators for online users
-
-- **Whiteboard Drawing**:
-  - Freehand drawing tools
-  - Shape creation (lines, rectangles, circles)
-  - Color selection palette
-  - Eraser functionality
-  - Layer management
-
-- **Chat Functionality**:
-  - Real-time message broadcasting
-  - Message history persistence
-  - Typing indicators
-  - Message timestamps
-
-- **Video Calling**:
-  - Peer-to-peer WebRTC connections
-  - Video session tracking
-  - Mute/unmute controls
-  - Camera on/off toggles
-
-- **User Profiles**:
-  - Profile information storage
-  - Activity history
-  - Connection status tracking
-
-- **Database Integration**:
-  - Room model with metadata
-  - User model with credentials
-  - Chat message model with timestamps
-  - Call session model with participants
-
-- **Frontend UI**:
-  - Responsive whiteboard canvas
-  - Toolbar with drawing options
-  - Sidebar for room participants
-  - Chat message display area
-  - Video call interface
-
-- **Asset Management**:
-  - Static asset serving
-  - Icon storage for UI elements
-  - Theme customization options
-        
-## 🛠️ Tech Stack
-
-### **Backend Tech Stack**
-- **Runtime**: Node.js
-- **Framework**: Express.js
-- **Database**: 
-  - MongoDB (via Mongoose)
-  - PostgreSQL (via pg for Supabase)
-- **Authentication**: 
-  - Supabase (via @supabase/supabase-js)
-  - JWT (jsonwebtoken)
-- **Real-time Communication**: Socket.io
-- **Other Libraries**:
-  - CORS for cross-origin requests
-  - dotenv for environment variables
-  - express-rate-limit for API rate limiting
-  - UUID for unique ID generation
-
-### **Frontend Tech Stack**
-- **Framework**: React 19
-- **Bundler**: Vite
-- **UI Components**: 
-  - Material-UI (MUI)
-  - Emotion for CSS-in-JS
-- **State Management**: React hooks
-- **Routing**: React Router DOM
-- **Real-time Communication**: 
-  - Socket.io-client
-  - Simple-peer for WebRTC
-- **Styling**: Tailwind CSS
-- **Authentication**: Supabase
-- **Utility Libraries**:
-  - React Icons
-  - UUID
-
-### **Shared Technologies**
-- **Authentication**: Supabase (@supabase/supabase-js)
-- **Utilities**: UUID for ID generation
-- **Real-time**: Socket.io (server) and socket.io-client (frontend)
-        
-## 📦 Installation & Setup
-
-### Prerequisites
-- Node.js (v14.0.0 or higher)
-- MongoDB instance (local or cloud)
-- npm or yarn package manager
-
-### Local Development
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard.git
-   cd Real-Time-Collaborative-Whiteboard
-   ```
-
-2. **Install dependencies**
-   ```bash
-   # Install server dependencies
-   cd backend && npm install
-
-   # Install client dependencies
-   cd ../frontend && npm install
-   ```
-
-3. **Environment Setup**
-   
-   Create a `.env` file in the `backend` directory:
-   ```env
-    PORT=5000
-    MONGO = 'mongodb://localhost:27017/whiteboard'
-    SUPABASE_JWT_SECRET=Your_Secret
-    NODE_ENV=production
-   ```
-
-
-   Create a `.env` file in the `frontend` directory:
-   ```env
-    VITE_NETWORK_ONLINE_HASH=create_hash_value
-    VITE_NETWORK_OFFLINE_HASH=create_hash_value
-    VITE_APP_SUPABASE_URL=Your_supabase_url
-    VITE_APP_SUPABASE_ANON_KEY=Your_supabase_key
-    VITE_BACKEND_URL=http://localhost:5000
-   ```
-
-4. **Database Setup**
-   Add MONGO_URI variable in the .env file in backend directory.
-
-5. **Start Development Servers**
-   ```bash
-   # Terminal 1 - Backend
-   cd backend && npm run dev
-
-   # Terminal 2 - Frontend
-   cd frontend && npm run dev
-   ```
-
-### Production Deployment
-
-#### Render Deployment (Recommended)
-
-1. **Push your code to GitHub**
-
-2. **Create a new Web Service on Render**
-   - Connect your GitHub repository
-   - Set the build command: `npm run build`
-   - Set the start command: `npm start`
-   - Add environment variables in the Render dashboard
-
-3. **Environment Variables for Production**
-   ```env
-    VITE_NETWORK_ONLINE_HASH=
-    VITE_NETWORK_OFFLINE_HASH=
-    VITE_APP_SUPABASE_URL=
-    VITE_APP_SUPABASE_ANON_KEY=
-    VITE_BACKEND_URL=http://localhost:5000
-    PORT=5000
-    MONGO = 'mongodb://localhost:27017/whiteboard'
-    SUPABASE_JWT_SECRET=
-    NODE_ENV=production
-   ```
-
-## 🎯 Key Usage Scenarios
-
-- **Remote Team Brainstorming**
-  - Simultaneous drawing and annotation
-  - Real-time idea sharing with visual elements
-  - Persistent workspace for ongoing projects
-
-- **Online Education & Tutoring**
-  - Interactive lessons with shared whiteboard
-  - Teacher-student collaboration
-  - Visual explanations of complex concepts
-
-- **Design Collaboration**
-  - Wireframing and prototyping
-  - UI/UX design feedback sessions
-  - Creative concept development
-
-- **Agile Development**
-  - Sprint planning with visual task boards
-  - Architecture diagramming
-  - Team stand-ups with shared notes
-
-- **Customer Support**
-  - Visual troubleshooting guides
-  - Product demonstrations
-  - Real-time technical explanations
-
-- **Creative Workshops**
-  - Design thinking sessions
-  - Mind mapping exercises
-  - Visual storytelling collaborations
-
-- **Remote Interviews**
-  - Technical problem-solving on shared space
-  - Coding interview whiteboarding
-  - Collaborative skill assessment
-
-## 🏗️ Project Structure
-
-```
-Real-Time-Collaborative-Whiteboard/
-├── frontend/              # React frontend
-│   ├── src/
-│   │   ├── components/    # Reusable components and event pages
-│   │   ├── context/       # React context providers for Supabase Auth
-│   │   ├── network/       # To handle Offline Assistance
-│   │   ├── UI/            # Custom UI components
-│   │   └── utils/         # Utility functions for canvas, network, socket and supabsae connection
-│   │   ├── App.jsx        # App routes
-│   ├── public/            # Static assets
-│   └── package.json
-├── backend/               # Express backend
-│   ├── auth/              # Authentication middlewares and Supabase verification
-│   ├── controllers/       # Route controllers for room and user models
-│   ├── model/             # MongoDB models for callsession, chatmessage, room and user
-│   ├── routes/            # API routes for room
-│   ├── index.js           # Main backend file (also responsible for handling websockets connection)
-│   └── package.json
-└── package.json           # Root package.json
+```mermaid
+flowchart TB
+  subgraph client [Frontend React TS]
+    WSClient[RealtimeClient protobuf WS]
+  end
+  subgraph gw [gateway Go]
+    REST[REST chi]
+    WS[WS hub]
+    AUTHZ[authz pipeline]
+  end
+  subgraph svc [Domain services gRPC]
+    ROOM[room]
+    BOARD[board]
+    CHAT[chat]
+    PRES[presence]
+  end
+  NATS[NATS JetStream and core]
+  REDIS[(Redis)]
+  PG[(Postgres RLS)]
+  SB[Supabase Auth]
+  WSClient --> gw
+  client --> SB
+  gw -->|gRPC| ROOM
+  gw -->|gRPC| BOARD
+  gw -->|gRPC| CHAT
+  gw -->|publish| NATS
+  NATS --> BOARD & CHAT & PRES
+  NATS -->|fanout| WS
+  ROOM & BOARD & CHAT --> PG
+  BOARD & PRES & AUTHZ --> REDIS
 ```
 
-## 📱 Screenshots
+A stroke is a `ClientEnvelope` on `/ws` (`frontend/src/realtime/client.ts`). The gateway checks the JWT, membership, protovalidate, and the rate limit (`services/gateway/internal/authz/pipeline.go`), then publishes `wb.board.stroke.v1`. Board-service appends the op-log and publishes `wb.board.stroke_applied.v1`. `services/gateway/internal/fanout/fanout.go` delivers `ServerEnvelope` frames to the room.
 
-### Room Page
-<img width="1896" height="900" alt="image" src="https://github.com/user-attachments/assets/944fdd54-bd9e-42b7-86cd-600599552257" />
+## Quickstart
 
-### Whiteboard
-<img width="1897" height="904" alt="image" src="https://github.com/user-attachments/assets/db776949-bf6a-4d26-8763-ef9de42ecde2" />
+Prerequisites: Docker Desktop and [Task](https://taskfile.dev). Node.js is required for the Vite app. `task up` does not start the frontend. Commands match `docs/runbooks/local-dev.md`.
 
-### Real-Time Chat
-<img width="1899" height="877" alt="image" src="https://github.com/user-attachments/assets/9f613ebc-dfcc-4a7e-ae8e-cddb2720c735" />
+From the repo root, with Docker Desktop running:
 
-### Users List
-<img width="1899" height="900" alt="image" src="https://github.com/user-attachments/assets/9f377ff2-716c-490f-b21b-e9bef13d88a1" />
-
-### Video Call
-<img width="402" height="907" alt="image" src="https://github.com/user-attachments/assets/f320879f-52bb-4bc8-a3aa-4063ad3d7c3c" />
-
-<img width="1901" height="899" alt="image" src="https://github.com/user-attachments/assets/ec29375b-e0ee-46b3-a98e-4f1ae2149312" />
-
-### **Socket Events and Functionalities**
-
-1. **connection**
-   - Establishes socket connection
-   - Handles user authentication via middleware
-   - Initializes user tracking in memory
-
-2. **joinRoom**
-   - Joins a user to a specific room
-   - Creates room if it doesn't exist
-   - Maintains room participant list
-   - Handles admin assignment
-   - Sends initial room data (drawings, admin status)
-   - Broadcasts user join notification
-
-3. **cursorMove**
-   - Tracks and broadcasts cursor position
-   - Used for showing other users' cursor locations
-
-4. **chat:send**
-   - Handles chat message sending
-   - Includes rate limiting
-   - Persists messages to database
-   - Broadcasts messages to room
-
-5. **draw**
-   - Handles freehand drawing
-   - Persists drawings to database
-   - Broadcasts drawing data to room
-   - Manages undo/redo stacks
-
-6. **drawShape**
-   - Handles predefined shape drawing (lines, rectangles, circles)
-   - Similar persistence and broadcasting as freehand drawing
-
-7. **clear**
-   - Clears the whiteboard
-   - Resets drawings in database
-   - Broadcasts clear command to all room participants
-
-8. **undo**
-   - Removes last drawing action
-   - Maintains redo stack
-   - Updates database and broadcasts changes
-
-9. **redo**
-   - Reapplies last undone action
-   - Updates from redo stack
-   - Updates database and broadcasts changes
-
-10. **call:join**
-    - Handles video call initiation
-    - Manages call participants
-    - Broadcasts participant join notifications
-
-11. **call:leave**
-    - Handles participant leaving call
-    - Updates participant list
-    - Ends call if last participant leaves
-
-12. **call:toggleMic**
-    - Handles microphone mute/unmute
-    - Broadcasts state to other participants
-
-13. **call:toggleCamera**
-    - Handles camera on/off
-    - Broadcasts state to other participants
-
-14. **call:signal**
-    - WebRTC signaling for peer connections
-    - Routes signaling data between participants
-
-15. **disconnect**
-    - Handles socket disconnection
-    - Cleans up user tracking
-    - Handles room participant updates
-    - Manages admin reassignment
-
-### **Special Socket Rooms**
-- Regular rooms (for whiteboard collaboration)
-- `call:[roomId]` rooms (for video call sessions)
-
-All socket events are integrated with MongoDB for persistence and include proper error handling and state management.
-
-## 🚀 Available Scripts
-
-### Root Level
-- `npm start` - Start production server
-- `npm run dev` - Start development mode (both client & server)
-- `npm run build` - Build for production
-- `npm run install` - Install all dependencies
-
-### Client
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-
-### Server
-- `npm start` - Start production server
-- `npm run dev` - Start development server with nodemon
-
-## 🧪 Testing
-
-```bash
-# Run client tests
-npm test
-
-# Run server tests
-npm test
+```powershell
+docker compose -f deploy/compose/docker-compose.yml down -v
+task up
 ```
 
-## 🐛 Troubleshooting
+`task up` is `docker compose -f deploy/compose/docker-compose.yml up -d --build`. Readiness is `http://localhost:8080/readyz`. `task logs` follows logs. `task down` stops the stack and keeps volumes. `task down -- -v` drops them.
 
-### Common Issues
+The UI is a separate process. On a clean clone, install dependencies once, then start Vite:
 
-1. **Build fails on Render**
-   - Ensure all dependencies are properly listed in package.json
-   - Check Node.js version compatibility
-   - Use `--legacy-peer-deps` flag for dependency conflicts (especially if you are using swc with vite+js)
+```powershell
+cd frontend
+npm ci
+cd ..
+task dev-frontend
+```
 
-2. **MongoDB connection issues**
-   - Verify your MongoDB connection string
-   - Ensure your IP is whitelisted in MongoDB Atlas
-   - Check if MongoDB service is running locally
+`task dev-frontend` runs `npm run dev` in `frontend` (port 5173). Copy `frontend/.env.example` to `frontend/.env` and set `VITE_APP_SUPABASE_URL`, `VITE_APP_SUPABASE_ANON_KEY`, and `VITE_BACKEND_URL` (`http://localhost:8080` is the example). Sign-in details and the local HS256 gateway are in `docs/runbooks/local-dev.md`.
 
-3. **CORS issues**
-   - Ensure CORS is properly configured in the server
-   - Check if frontend API URL matches backend URL
+| What | URL |
+|---|---|
+| Gateway readiness | http://localhost:8080/readyz |
+| Frontend | http://localhost:5173 |
+| Jaeger | http://localhost:16686 |
+| Grafana | http://localhost:3000 (admin / admin) |
+| Grafana dashboard | http://localhost:3000/d/whiteboard-dev/whiteboard-local |
+| Prometheus | http://localhost:9090 |
 
-## 🤝 Contributing
+## Design highlights
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+- [Go microservices instead of a modular monolith](docs/adr/001-go-microservices.md)
+- [NATS JetStream instead of Kafka](docs/adr/002-nats-over-kafka.md)
+- [Native WebSockets instead of Socket.IO](docs/adr/003-native-websocket.md)
+- [Op-log and snapshots instead of a CRDT](docs/adr/004-board-oplog.md)
+- [Supabase JWTs verified with JWKS](docs/adr/005-supabase-jwks.md)
+- [Server-side undo and redo](docs/adr/006-server-side-undo.md)
 
+Authorization matrix: [docs/SECURITY.md](docs/SECURITY.md). Threat model: [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md). Subject list: [docs/CONTRACTS.md](docs/CONTRACTS.md). Schema: [docs/SCHEMA.md](docs/SCHEMA.md).
 
-## 👥 Contact
+## Demo and observability
 
-**Deepak Joshi** - [@drakeRAGE](https://github.com/drakeRAGE)
+These are the portfolio media names from the Phase 14 plan. The files are not in the tree. Nothing below is a stand-in image.
 
-**Project Link**: [https://github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard](https://github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard)
+| Plan name | Path | What is in the repo instead |
+|---|---|---|
+| Demo GIF, two-tab draw sync | `docs/assets/two-tab-draw-sync.gif` | `frontend/src/realtime/client.ts`, `services/gateway/internal/ws/hub.go` |
+| Grafana screenshot | `docs/assets/grafana.png` | `deploy/compose/grafana/dashboards/whiteboard.json` |
+| Jaeger trace screenshot | `docs/assets/jaeger-trace.png` | Jaeger UI after `task up`: http://localhost:16686 |
 
-## 🙏 Acknowledgments
+The provisioned dashboard plots Prometheus `up` and states that the Go processes do not export a `/metrics` handler, so WebSocket connections, NATS lag, and request latency are not on that board. Traces are OTLP from `pkg/otelx`.
 
-- [React](https://reactjs.org/) for the amazing frontend framework
-- [Express.js](https://expressjs.com/) for the robust backend framework
-- [Tailwind CSS](https://tailwindcss.com/) for the beautiful styling
-- [MongoDB](https://www.mongodb.com/) for the flexible database
-- [Render](https://render.com/) for the free hosting service
-- [Socket.io](https://www.npmjs.com/package/socket.io) for providing websockers connection.
+## Load test
 
-<!-- Support Section -->
-<div style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 2rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 2rem 0;">
-  <h2 style="color: #2d3748; margin-bottom: 1rem;">☕ Support My Work</h2>
-  
-  <p style="color: #4a5568; margin-bottom: 1.5rem;">
-    If you find this project useful and would like to support my development efforts, 
-    consider buying me a coffee! Your support helps me continue maintaining and 
-    improving this project.
-  </p>
-  
-  <a href="https://buymeacoffee.com/drakeRAGE" target="_blank" 
-     style="display: inline-block; background: #FF813F; color: white; 
-            padding: 0.8rem 1.5rem; border-radius: 5px; text-decoration: none; 
-            font-weight: bold; transition: all 0.3s ease;">
-    🚀 Buy Me A Coffee
-  </a>
-  
-  <p style="color: #718096; font-size: 0.9rem; margin-top: 1.5rem;">
-    Every contribution, no matter how small, is greatly appreciated!
-  </p>
-</div>
+Figures are the committed local Compose run in [load/REPORT.md](load/REPORT.md). The 500 VU profile was not started. The 100 VU run missed `fanout_latency` `p(99)<150`.
 
----
+| Metric | Smoke, 20 VUs | 100 VUs, 10 rooms |
+|---|---|---|
+| Result | exit 0 | exit 99 |
+| errors | 0 | 0 |
+| fanout_latency p99 | no stroke samples | 2m 10s |
+| ws_msgs_received | 209121 | 1413208 |
 
-<div align="center">
-  <p>Made with ❤️ by <a href="https://github.com/drakeRAGE">Deepak Joshi</a></p>
-  <p>⭐ Don't forget to star this repository if you find it helpful!</p>
-</div>
+The report attributes the 100 VU latency to board-ingest backlog and to applied events that reused the ingest `Nats-Msg-Id`. Current publish code uses a distinct id: `appliedMessageID` in `services/board/internal/service/board.go`. That change is not a new load run. The duplicate window in `pkg/natsx/natsx.go` is still 2 minutes.
 
+## Operations
 
-        
+- Local stack: [docs/runbooks/local-dev.md](docs/runbooks/local-dev.md)
+- Kubernetes: [docs/runbooks/k8s.md](docs/runbooks/k8s.md)
+- Supabase cloud: [docs/runbooks/supabase-cloud.md](docs/runbooks/supabase-cloud.md)
+
+```powershell
+task lint
+task test
+task coverage
+```
+
+`task coverage` fails under 80% statement coverage in `pkg/` or 70% in a service module (`scripts/coverage-gate.ps1`).
+
+## Limitations and roadmap
+
+- The coverage badge is the gate in `scripts/coverage-gate.ps1`. It is not a hosted coverage percentage. The Go Report Card badge tracks the GitHub repository. This repo is a `go.work` with several modules.
+- `load/REPORT.md` does not show a passing 150 ms fan-out at 100 VUs, and it does not contain a 500 VU run.
+- Grafana on the Compose stack does not graph application series. See the text panel in `deploy/compose/grafana/dashboards/whiteboard.json`.
+- `docs/runbooks/supabase-cloud.md` records that cloud migrations were not applied. Compose verifies HS256 with `SUPABASE_JWT_ALLOW_HS256` (`deploy/compose/docker-compose.yml`). Cloud asymmetric tokens need `SUPABASE_JWKS_URL` and the HS256 flag left false (`services/gateway/internal/config/config.go`).
+- Helm charts are under `deploy/k8s/charts/`. `task kind-up` is documented in `docs/runbooks/k8s.md`. This README does not claim a fresh kind install was timed.
+- Two-tab draw sync, the Grafana board, and a Jaeger trace are not recorded as files under `docs/assets/`.
