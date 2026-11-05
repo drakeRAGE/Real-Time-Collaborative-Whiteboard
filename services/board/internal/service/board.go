@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/oklog/ulid/v2"
 	"google.golang.org/protobuf/proto"
 
 	boardv1 "github.com/drakeRAGE/realtime-whiteboard/gen/go/whiteboard/board/v1"
@@ -379,10 +381,25 @@ func (s *Service) publish(ctx context.Context, op repo.Op) error {
 	default:
 		return fmt.Errorf("publish kind %s", op.Kind)
 	}
-	if err := s.pub.Publish(ctx, subject, op.ID, body); err != nil {
+	// The ingest message and its applied event are distinct JetStream records.
+	// Reusing op.ID here makes JetStream's duplicate window drop the applied
+	// event, leaving gateway fan-out with no stroke to deliver.
+	if err := s.pub.Publish(ctx, subject, appliedMessageID(op.ID), body); err != nil {
 		return fmt.Errorf("publish applied: %w", err)
 	}
 	return nil
+}
+
+// appliedMessageID returns a deterministic, valid ULID in a namespace separate
+// from the ingest op. JetStream deduplicates Nats-Msg-Id per stream, not subject.
+func appliedMessageID(opID string) string {
+	id, err := ulid.Parse(opID)
+	if err != nil {
+		return opID + ":applied"
+	}
+	digest := sha256.Sum256([]byte(opID + ":applied"))
+	copy(id[6:], digest[:10])
+	return id.String()
 }
 
 func (s *Service) requireMember(ctx context.Context, roomID, userID uuid.UUID) error {

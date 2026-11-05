@@ -174,6 +174,13 @@ func (p orderPub) Publish(context.Context, string, string, proto.Message) error 
 	return nil
 }
 
+type capturePub struct{ msgID string }
+
+func (p *capturePub) Publish(_ context.Context, _ string, msgID string, _ proto.Message) error {
+	p.msgID = msgID
+	return nil
+}
+
 type orderStore struct {
 	*mem
 	order *[]string
@@ -220,6 +227,27 @@ func opID(t *testing.T, raw json.RawMessage) string {
 		t.Fatal(err)
 	}
 	return body.OpID
+}
+
+func TestAppliedEventUsesDistinctJetStreamMessageID(t *testing.T) {
+	room := uuid.New()
+	user := uuid.New()
+	pub := &capturePub{}
+	svc := New(&mem{}, roles{"admin"}, nopCache{}, pub)
+	id := testID(t)
+
+	if err := svc.ApplyStroke(context.Background(), user, strokeOf(room, id)); err != nil {
+		t.Fatalf("ApplyStroke() error = %v", err)
+	}
+	if pub.msgID == id {
+		t.Fatal("applied event reused the ingest message ID")
+	}
+	if _, err := ulid.Parse(pub.msgID); err != nil {
+		t.Fatalf("applied message ID is not a ULID: %q (%v)", pub.msgID, err)
+	}
+	if got := appliedMessageID(id); got != pub.msgID {
+		t.Fatalf("applied message ID is not deterministic: got %q want %q", pub.msgID, got)
+	}
 }
 
 func TestUndoMarksTheSecondStroke(t *testing.T) {
