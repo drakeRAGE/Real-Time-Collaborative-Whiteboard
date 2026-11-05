@@ -13,6 +13,17 @@ interface RoomValue {
 
 const RoomContext = createContext<RoomValue | null>(null);
 
+// Strict Mode runs effect cleanup and immediately remounts. Leaving in that
+// cleanup deletes a one-member room before the remount can join again.
+const pendingLeave = new Map<string, ReturnType<typeof setTimeout>>();
+
+function cancelLeave(roomId: string): void {
+  const timer = pendingLeave.get(roomId);
+  if (timer === undefined) return;
+  clearTimeout(timer);
+  pendingLeave.delete(roomId);
+}
+
 export function RoomProvider({ roomId, children }: { roomId: string; children: ReactNode }) {
   const { userId } = useAuth();
   const { client } = useSocket();
@@ -21,6 +32,7 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
 
   useEffect(() => {
     if (!client || !roomId) return;
+    cancelLeave(roomId);
     let active = true;
     const join = () => {
       if (!active || client.state !== 'open') return;
@@ -35,13 +47,20 @@ export function RoomProvider({ roomId, children }: { roomId: string; children: R
       setMembers(state.members);
       setAdminId(state.adminId);
     });
+    const rt = client;
+    const id = roomId;
     return () => {
       active = false;
       offState();
       offRoom();
-      if (client.state === 'open') {
-        void client.send({ leaveRoom: { roomId } }).catch(() => undefined);
-      }
+      cancelLeave(id);
+      const timer = setTimeout(() => {
+        pendingLeave.delete(id);
+        if (rt.state === 'open') {
+          void rt.send({ leaveRoom: { roomId: id } }).catch(() => undefined);
+        }
+      }, 0);
+      pendingLeave.set(id, timer);
     };
   }, [client, roomId]);
 

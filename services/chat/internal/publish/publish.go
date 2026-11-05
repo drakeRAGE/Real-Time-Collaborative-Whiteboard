@@ -33,7 +33,10 @@ func New(js *natsx.Client, nc *nats.Conn) *NATS {
 
 // MessageSent emits wb.chat.message_sent.v1.
 func (p *NATS) MessageSent(ctx context.Context, msg *chatv1.Message) error {
-	if err := p.js.Publish(ctx, subjectMessageSent, msg, msg.GetId()); err != nil {
+	// The ingest record already used this id on the CHAT stream. A second
+	// publish with the same Nats-Msg-Id is dropped, so the gateway never
+	// fans the message out.
+	if err := p.js.Publish(ctx, subjectMessageSent, msg, msg.GetId()+":sent"); err != nil {
 		return fmt.Errorf("publish message sent: %w", err)
 	}
 	return nil
