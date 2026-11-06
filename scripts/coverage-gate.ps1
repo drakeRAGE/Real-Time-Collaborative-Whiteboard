@@ -76,14 +76,23 @@ function Measure-Module {
         if ($exit -ne 0 -and $joined -match 'Application Control policy') {
             Write-Host '  host blocked a test binary; go test -cover in golang:1.26-alpine'
             $rel = $Dir.Substring($Root.Length).TrimStart('\').Replace('\', '/')
-            $output = & docker run --rm `
-                -v "${Root}:/src" `
-                -v "C:\Users\Interloop12\go\pkg\mod:/go/pkg/mod" `
-                -v wb-gocache:/root/.cache/go-build `
-                -w "/src/$rel" `
-                -e GOWORK=off -e CGO_ENABLED=0 `
-                golang:1.26-alpine go test -mod=readonly -cover ./... 2>&1
-            $exit = $LASTEXITCODE
+            $prev = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try {
+                $output = & docker run --rm --network whiteboard_default `
+                    -v "${Root}:/src" `
+                    -v "C:\Users\Interloop12\go\pkg\mod:/go/pkg/mod" `
+                    -v wb-gocache:/root/.cache/go-build `
+                    -w "/src/$rel" `
+                    -e GOWORK=off -e CGO_ENABLED=0 `
+                    -e REDIS_ADDR=redis:6379 `
+                    -e NATS_URL=nats://nats:4222 `
+                    golang:1.26-alpine go test -mod=readonly -cover ./... 2>&1
+                $exit = $LASTEXITCODE
+            }
+            finally {
+                $ErrorActionPreference = $prev
+            }
         }
         $output | ForEach-Object { Write-Host "  $_" }
         if ($exit -ne 0) { throw "go test -cover failed in $Dir (exit $exit)" }
@@ -138,6 +147,9 @@ function Measure-Group {
         $part = Measure-Module -Dir $full
         $pct = Get-Percent $part
         Write-Host ("  module {0:N1}%  ({1}/{2} statements)" -f $pct, $part.Covered, $part.Statements)
+        if ($Label -eq 'services' -and $pct -lt $ServiceFloor) {
+            $script:ServiceLows += ("{0} {1:N1}%" -f $dir, $pct)
+        }
         $total.Statements += $part.Statements
         $total.Covered += $part.Covered
     }
@@ -149,6 +161,7 @@ function Measure-Group {
 $pkgDirs = Get-ChildItem -Path (Join-Path $Root 'pkg') -Directory | ForEach-Object { "pkg/$($_.Name)" }
 $serviceDirs = Get-ChildItem -Path (Join-Path $Root 'services') -Directory | ForEach-Object { "services/$($_.Name)" }
 
+$script:ServiceLows = @()
 $pkgPct = Measure-Group -Label 'pkg' -Dirs $pkgDirs
 $servicePct = Measure-Group -Label 'services' -Dirs $serviceDirs
 
@@ -159,6 +172,10 @@ if ($pkgPct -lt $PkgFloor) {
 }
 if ($servicePct -lt $ServiceFloor) {
     Write-Host "FAIL service coverage $([math]::Round($servicePct, 1))% is under $ServiceFloor%"
+    $failed = $true
+}
+if ($script:ServiceLows.Count -gt 0) {
+    Write-Host "FAIL service module under ${ServiceFloor}%: $($script:ServiceLows -join ', ')"
     $failed = $true
 }
 if ($failed) { exit 1 }
