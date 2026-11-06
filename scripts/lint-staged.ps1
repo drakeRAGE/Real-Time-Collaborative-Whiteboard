@@ -35,13 +35,42 @@ foreach ($file in $files) {
     $groups[$mod].Add(($rel -replace '\\', '/'))
 }
 
-foreach ($mod in $groups.Keys) {
-    Push-Location (Join-Path $root $mod)
+function Invoke-Golangci {
+    param(
+        [Parameter(Mandatory = $true)][string]$Module,
+        [Parameter(Mandatory = $true)][string[]]$Files
+    )
+    $pkgs = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+    foreach ($file in $Files) {
+        $native = $file -replace '/', '\'
+        $dir = Split-Path $native
+        if ([string]::IsNullOrEmpty($dir)) { $pkg = '.' } else { $pkg = './' + ($dir -replace '\\', '/') }
+        if ($seen.ContainsKey($pkg)) { continue }
+        $seen[$pkg] = $true
+        $pkgs.Add($pkg)
+    }
+    $args = @($pkgs.ToArray())
+    $modRoot = if ($Module -eq '.') { $root } else { Join-Path $root $Module }
+    $work = '/src'
+    if ($Module -ne '.') { $work = '/src/' + ($Module -replace '\\', '/') }
+    Push-Location $modRoot
     try {
-        & golangci-lint run --timeout 5m @($groups[$mod].ToArray())
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        try {
+            & golangci-lint run --build-tags=integration --timeout 5m @args
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        } catch {
+            if ($_.Exception.Message -notmatch 'Application Control policy') { throw }
+            Write-Host 'host blocked golangci-lint; running v2.10.1 in docker'
+            & docker run --rm -v "${root}:/src" -w $work golangci/golangci-lint:v2.10.1 golangci-lint run --build-tags=integration --timeout 5m @args
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        }
     } finally {
         Pop-Location
     }
+}
+
+foreach ($mod in $groups.Keys) {
+    Invoke-Golangci -Module $mod -Files @($groups[$mod].ToArray())
 }
 exit 0
