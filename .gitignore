@@ -13,3 +13,5 @@ deploy/k8s/charts/whiteboard/charts/*.tgz
 !.cursor/skills/**
 !.cursor/rules/
 !.cursor/rules/**
+.agents/
+frontend/.vite-dev*.log
