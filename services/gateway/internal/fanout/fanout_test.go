@@ -43,6 +43,30 @@ func TestFanoutDeliversAppliedAndSkipsIngest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, stream := range []string{"BOARD", "CHAT"} {
+		st, err := js.Stream(context.Background(), stream)
+		if err != nil {
+			t.Fatal(err)
+		}
+		names := st.ConsumerNames(context.Background())
+		n := 0
+		for name := range names.Name() {
+			n++
+			info, err := st.Consumer(context.Background(), name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if info.CachedInfo().Config.MemoryStorage {
+				t.Fatalf("%s consumer %s is memory-backed", stream, name)
+			}
+		}
+		if err := names.Err(); err != nil {
+			t.Fatal(err)
+		}
+		if n == 0 {
+			t.Fatalf("%s has no fanout consumer", stream)
+		}
+	}
 	ingest, err := proto.Marshal(&boardv1.Stroke{Id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", RoomId: roomX, UserId: "11111111-1111-4111-8111-111111111111"})
 	if err != nil {
 		t.Fatal(err)

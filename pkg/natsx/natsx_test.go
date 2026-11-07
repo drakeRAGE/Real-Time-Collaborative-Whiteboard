@@ -227,6 +227,9 @@ func assertStreams(t *testing.T, c *Client) {
 		if info.Config.Retention != jetstream.LimitsPolicy || info.Config.Storage != jetstream.FileStorage {
 			t.Fatalf("%s retention/storage", name)
 		}
+		if info.Config.MaxBytes != streamMaxBytes || info.Config.Replicas != 1 {
+			t.Fatalf("%s maxBytes=%d replicas=%d", name, info.Config.MaxBytes, info.Config.Replicas)
+		}
 	}
 }
 

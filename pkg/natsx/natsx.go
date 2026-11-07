@@ -82,6 +82,10 @@ func (c *Client) EnsureStreams(ctx context.Context) error {
 	return nil
 }
 
+// streamMaxBytes caps each stream. Managed NATS (Synadia Cloud) rejects streams
+// without MaxBytes and limits the account to 2.5 GiB of file storage in total.
+const streamMaxBytes = 1 << 30
+
 func streamConfigs() []jetstream.StreamConfig {
 	window := 7 * 24 * time.Hour
 	dup := 2 * time.Minute
@@ -91,16 +95,20 @@ func streamConfigs() []jetstream.StreamConfig {
 			Subjects:   []string{"wb.board.>"},
 			Retention:  jetstream.LimitsPolicy,
 			MaxAge:     window,
+			MaxBytes:   streamMaxBytes,
 			Duplicates: dup,
 			Storage:    jetstream.FileStorage,
+			Replicas:   1,
 		},
 		{
 			Name:       "CHAT",
 			Subjects:   []string{"wb.chat.>"},
 			Retention:  jetstream.LimitsPolicy,
 			MaxAge:     window,
+			MaxBytes:   streamMaxBytes,
 			Duplicates: dup,
 			Storage:    jetstream.FileStorage,
+			Replicas:   1,
 		},
 	}
 }

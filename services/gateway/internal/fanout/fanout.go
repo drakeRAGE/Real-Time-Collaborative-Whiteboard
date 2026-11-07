@@ -129,7 +129,6 @@ func (f *Fanout) consume(ctx context.Context, js jetstream.JetStream, stream str
 		AckPolicy:         jetstream.AckExplicitPolicy,
 		FilterSubjects:    filters,
 		InactiveThreshold: 5 * time.Minute,
-		MemoryStorage:     true,
 	})
 	if err != nil {
 		return fmt.Errorf("fanout consumer %s: %w", stream, err)
