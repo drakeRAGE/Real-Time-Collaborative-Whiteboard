@@ -96,7 +96,10 @@ func TestBoardService(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = roomConn.Close() })
 
-	rdb := redisx.New(redisAddr)
+	rdb, err := redisx.New(redisAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(func() { _ = rdb.Close() })
 	svc := service.New(
 		repo.New(pool),

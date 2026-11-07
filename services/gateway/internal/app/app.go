@@ -75,7 +75,10 @@ func New(ctx context.Context, cfg gwcfg.Config, log zerolog.Logger) (*App, error
 	if err := jsx.EnsureStreams(ctx); err != nil {
 		return nil, err
 	}
-	rdb := redisx.New(cfg.RedisAddr)
+	rdb, err := redisx.New(cfg.RedisAddr)
+	if err != nil {
+		return nil, err
+	}
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		_ = rdb.Close()
 		return nil, fmt.Errorf("redis: %w", err)

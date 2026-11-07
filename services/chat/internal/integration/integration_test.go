@@ -70,7 +70,10 @@ func TestChatService(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rdb := redisx.New(redisAddr)
+	rdb, err := redisx.New(redisAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
 	pub := publish.New(jsx, nc)
 	svc := service.New(repo.New(pool), pub, ratelimit.New(rdb))
 	go func() {

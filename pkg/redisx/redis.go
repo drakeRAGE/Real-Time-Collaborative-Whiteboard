@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -14,9 +15,17 @@ import (
 // ErrMiss is returned when a cache key is absent or expired.
 var ErrMiss = errors.New("redisx: cache miss")
 
-// New returns a go-redis v9 client for addr (host:port).
-func New(addr string) *redis.Client {
-	return redis.NewClient(&redis.Options{Addr: addr})
+// New returns a go-redis v9 client. addr is either host:port or a
+// redis:// / rediss:// URL (password, DB, and TLS for rediss).
+func New(addr string) (*redis.Client, error) {
+	if !strings.HasPrefix(addr, "redis://") && !strings.HasPrefix(addr, "rediss://") {
+		return redis.NewClient(&redis.Options{Addr: addr}), nil
+	}
+	opts, err := redis.ParseURL(addr)
+	if err != nil {
+		return nil, fmt.Errorf("redisx: parse url: %w", err)
+	}
+	return redis.NewClient(opts), nil
 }
 
 // RateLimiter is a Redis-backed token bucket.

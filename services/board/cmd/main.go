@@ -62,7 +62,10 @@ func run(cfg boardcfg.Config, log zerolog.Logger) error {
 		return err
 	}
 
-	rdb := redisx.New(cfg.RedisAddr)
+	rdb, err := redisx.New(cfg.RedisAddr)
+	if err != nil {
+		return err
+	}
 	defer func() { _ = rdb.Close() }()
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		return err

@@ -45,7 +45,10 @@ func run(cfg presencecfg.Config, log zerolog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	rdb := redisx.New(cfg.RedisAddr)
+	rdb, err := redisx.New(cfg.RedisAddr)
+	if err != nil {
+		return err
+	}
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		return err
 	}

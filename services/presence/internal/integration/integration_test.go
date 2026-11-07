@@ -32,7 +32,10 @@ func TestPresenceService(t *testing.T) {
 	}
 	t.Cleanup(nc.Close)
 
-	rdb := redisx.New(redisAddr)
+	rdb, err := redisx.New(redisAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
 	st := store.New(rdb)
 	svc := service.New(st, nc)
 
