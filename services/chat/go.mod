@@ -24,7 +24,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.12.0
 	github.com/nats-io/nats.go v1.55.0
-	github.com/oklog/ulid/v2 v2.1.1
+	github.com/oklog/ulid/v2 v2.1.2
 	github.com/redis/go-redis/v9 v9.23.0
 	github.com/rs/zerolog v1.35.1
 	github.com/testcontainers/testcontainers-go/modules/nats v0.44.0
@@ -43,7 +43,7 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
-	github.com/caarlos0/env/v11 v11.4.1 // indirect
+	github.com/caarlos0/env/v11 v11.4.2 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
