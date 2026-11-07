@@ -1,9 +1,8 @@
 # Local development stack
 
 Compose runs Postgres, Redis, NATS JetStream, the five Go services, and
-Jaeger, Prometheus, and Grafana. The React app is not in this stack. It
-still speaks Socket.IO. The gateway speaks native WebSockets. That protocol
-cutover is Phase 9, so two-browser draw sync is not a claim for this stack.
+Jaeger, Prometheus, and Grafana. The React app is a separate Vite process.
+It speaks protobuf WebSockets to the gateway.
 
 Auth for real sign-in stays on Supabase cloud. `deploy/compose/seed.ps1`
 does not call Supabase. The gateway process in compose uses local HS256
@@ -34,10 +33,7 @@ edited. `service_role` is `NOLOGIN`, matching `docs/SCHEMA.md`. The services
 connect as the `postgres` superuser, the same way the integration tests do.
 The superuser bypasses `FORCE ROW LEVEL SECURITY`.
 
-There is no frontend image. `npm run build` was not used as a gate for this
-stack. Phase 9 owns the TypeScript client and the native WebSocket cutover.
-Run the current UI separately with `task dev-frontend` (Vite on port 5173).
-It will not draw-sync through this gateway.
+There is no frontend image. Run the UI with `task dev-frontend` (Vite on port 5173).
 
 ## URLs
 
@@ -92,7 +88,7 @@ Checked on this machine after `docker compose -f deploy/compose/docker-compose.y
 | http://localhost:3000/api/health | 200 |
 | http://localhost:3000/d/whiteboard-dev/whiteboard-local | 200 (admin / admin) |
 
-Jaeger UI: http://localhost:16686. After `POST /api/v1/rooms` with a local HS256 token, Jaeger listed services `gateway` and `room`. The trace has two spans: `gateway whiteboard.room.v1.RoomService/CreateRoom` and `room /whiteboard.room.v1.RoomService/CreateRoom`. That is the gateway-to-room call. It is not a draw-sync trace through NATS and board. The current React app still speaks Socket.IO, so two-browser draw sync is not running on this stack.
+Jaeger UI: http://localhost:16686. After `POST /api/v1/rooms` with a local HS256 token, Jaeger listed services `gateway` and `room`. The trace has two spans: `gateway whiteboard.room.v1.RoomService/CreateRoom` and `room /whiteboard.room.v1.RoomService/CreateRoom`. That is the gateway-to-room call. A later board-history trace, with gateway, board, and room, is in `docs/assets/jaeger-trace.png`.
 
 Grafana: http://localhost:3000. Dashboard: http://localhost:3000/d/whiteboard-dev/whiteboard-local. Datasource uid `prometheus`. The Go services still have no Prometheus exporter.
 
@@ -110,4 +106,4 @@ Image sizes from `docker images` (uncompressed, including the distroless and bus
 
 The final stage is `gcr.io/distroless/static-debian12:nonroot` pinned to `sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab`. The process runs as uid 65532 (`nonroot`). Build used `golang:1.26-alpine` because `go.mod` says `go 1.26.0`. `CGO_ENABLED=0` and `-ldflags "-s -w"`. Several images are larger than 30MB because the stripped binaries themselves are that large.
 
-Phase 9 was not started. No TypeScript rewrite, CI workflow, Helm chart, threat-model doc, Playwright, or k6 was added. There is no frontend image.
+The frontend is the TypeScript app under `frontend/`. Compose still has no frontend image.
