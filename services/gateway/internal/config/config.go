@@ -11,6 +11,7 @@ import (
 type Config struct {
 	HTTPAddr      string `env:"HTTP_ADDR" envDefault:":8080"`
 	NATSURL       string `env:"NATS_URL,required"`
+	NATSCreds     string `env:"NATS_CREDS"`
 	RedisAddr     string `env:"REDIS_ADDR,required"`
 	RoomGRPCAddr  string `env:"ROOM_GRPC_ADDR" envDefault:"localhost:7001"`
 	BoardGRPCAddr string `env:"BOARD_GRPC_ADDR" envDefault:"localhost:7002"`

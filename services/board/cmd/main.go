@@ -71,7 +71,11 @@ func run(cfg boardcfg.Config, log zerolog.Logger) error {
 		return err
 	}
 
-	nc, err := nats.Connect(cfg.NATSURL, nats.Name("board"))
+	natsOpts, err := natsx.ConnectOptions("board", cfg.NATSCreds)
+	if err != nil {
+		return err
+	}
+	nc, err := nats.Connect(cfg.NATSURL, natsOpts...)
 	if err != nil {
 		return err
 	}

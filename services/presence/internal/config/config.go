@@ -6,6 +6,7 @@ import "errors"
 // Config is loaded from the environment by pkg/config.
 type Config struct {
 	NATSURL  string `env:"NATS_URL,required"`
+	NATSCreds string `env:"NATS_CREDS"`
 	RedisAddr string `env:"REDIS_ADDR,required"`
 	HTTPAddr string `env:"HTTP_ADDR" envDefault:":8004"`
 	LogLevel string `env:"LOG_LEVEL" envDefault:"info"`

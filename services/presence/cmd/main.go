@@ -14,6 +14,7 @@ import (
 
 	"github.com/drakeRAGE/realtime-whiteboard/pkg/config"
 	"github.com/drakeRAGE/realtime-whiteboard/pkg/logger"
+	"github.com/drakeRAGE/realtime-whiteboard/pkg/natsx"
 	"github.com/drakeRAGE/realtime-whiteboard/pkg/otelx"
 	"github.com/drakeRAGE/realtime-whiteboard/pkg/redisx"
 	presencecfg "github.com/drakeRAGE/realtime-whiteboard/services/presence/internal/config"
@@ -53,7 +54,11 @@ func run(cfg presencecfg.Config, log zerolog.Logger) error {
 		return err
 	}
 
-	nc, err := nats.Connect(cfg.NATSURL, nats.Name("presence"))
+	natsOpts, err := natsx.ConnectOptions("presence", cfg.NATSCreds)
+	if err != nil {
+		return err
+	}
+	nc, err := nats.Connect(cfg.NATSURL, natsOpts...)
 	if err != nil {
 		return err
 	}

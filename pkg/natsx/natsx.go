@@ -9,6 +9,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/nats-io/nkeys"
 	"go.opentelemetry.io/otel"
 	"google.golang.org/protobuf/proto"
 )
@@ -35,6 +36,28 @@ type Handler func(ctx context.Context, msg Incoming) error
 type Client struct {
 	nc *nats.Conn
 	js jetstream.JetStream
+}
+
+// ConnectOptions returns nats.Connect options for a named client. creds is the
+// contents of a .creds file (user JWT and nkey seed); empty means no auth.
+func ConnectOptions(name, creds string) ([]nats.Option, error) {
+	opts := []nats.Option{nats.Name(name)}
+	if creds == "" {
+		return opts, nil
+	}
+	userJWT, err := nkeys.ParseDecoratedJWT([]byte(creds))
+	if err != nil {
+		return nil, fmt.Errorf("natsx: creds jwt: %w", err)
+	}
+	kp, err := nkeys.ParseDecoratedUserNKey([]byte(creds))
+	if err != nil {
+		return nil, fmt.Errorf("natsx: creds seed: %w", err)
+	}
+	seed, err := kp.Seed()
+	if err != nil {
+		return nil, fmt.Errorf("natsx: creds seed: %w", err)
+	}
+	return append(opts, nats.UserJWTAndSeed(userJWT, string(seed))), nil
 }
 
 // New wraps nc. The caller owns the connection and closes it.

@@ -58,7 +58,11 @@ func (a *App) Hub() *ws.Hub { return a.hub }
 
 // New connects NATS, Redis, and room-service and builds the handler.
 func New(ctx context.Context, cfg gwcfg.Config, log zerolog.Logger) (*App, error) {
-	nc, err := nats.Connect(cfg.NATSURL, nats.Name("gateway"))
+	natsOpts, err := natsx.ConnectOptions("gateway", cfg.NATSCreds)
+	if err != nil {
+		return nil, err
+	}
+	nc, err := nats.Connect(cfg.NATSURL, natsOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("nats: %w", err)
 	}

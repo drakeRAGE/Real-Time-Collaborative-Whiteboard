@@ -18,6 +18,7 @@ import (
 	"github.com/drakeRAGE/realtime-whiteboard/pkg/config"
 	"github.com/drakeRAGE/realtime-whiteboard/pkg/grpcx"
 	"github.com/drakeRAGE/realtime-whiteboard/pkg/logger"
+	"github.com/drakeRAGE/realtime-whiteboard/pkg/natsx"
 	"github.com/drakeRAGE/realtime-whiteboard/pkg/otelx"
 	roomcfg "github.com/drakeRAGE/realtime-whiteboard/services/room/internal/config"
 	roomgrpc "github.com/drakeRAGE/realtime-whiteboard/services/room/internal/grpc"
@@ -56,7 +57,11 @@ func run(cfg roomcfg.Config, log zerolog.Logger) error {
 		return err
 	}
 
-	nc, err := nats.Connect(cfg.NATSURL, nats.Name("room"))
+	natsOpts, err := natsx.ConnectOptions("room", cfg.NATSCreds)
+	if err != nil {
+		return err
+	}
+	nc, err := nats.Connect(cfg.NATSURL, natsOpts...)
 	if err != nil {
 		return err
 	}

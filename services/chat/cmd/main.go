@@ -68,7 +68,11 @@ func run(cfg chatcfg.Config, log zerolog.Logger) error {
 		return err
 	}
 
-	nc, err := nats.Connect(cfg.NATSURL, nats.Name("chat"))
+	natsOpts, err := natsx.ConnectOptions("chat", cfg.NATSCreds)
+	if err != nil {
+		return err
+	}
+	nc, err := nats.Connect(cfg.NATSURL, natsOpts...)
 	if err != nil {
 		return err
 	}

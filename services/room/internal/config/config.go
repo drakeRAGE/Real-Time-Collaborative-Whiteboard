@@ -7,6 +7,7 @@ import "errors"
 type Config struct {
 	DatabaseURL string `env:"DATABASE_URL,required"`
 	NATSURL     string `env:"NATS_URL,required"`
+	NATSCreds   string `env:"NATS_CREDS"`
 	GRPCAddr    string `env:"GRPC_ADDR" envDefault:":7001"`
 	HTTPAddr    string `env:"HTTP_ADDR" envDefault:":8001"`
 	LogLevel    string `env:"LOG_LEVEL" envDefault:"info"`
