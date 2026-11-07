@@ -1,66 +1,99 @@
 # Supabase cloud setup
 
-**Status: blocked.** Migrations were not applied to any cloud project.
-`confirm_cost` was not called. No project was created. No keys were written.
+**Status: schema applied (2026-11-07).** The existing `Whiteboard` project
+was reused by explicit decision. No project was created and `confirm_cost`
+was not called. Dashboard steps below are still open. No keys or passwords
+are written in this repo.
 
-## What is already in the account
+## Target project
 
 Org `drakeRAGE's Org` (`dutgbjvnnjhysdyveifq`), plan free.
 
-`get_cost` for a new project in that org returned **$0 / month**. That quote
-was not confirmed.
-
 | Project | Ref | Region | Status |
 |---|---|---|---|
-| Blures | `ruvkilwvxypqwjignbnz` | ap-south-1 | INACTIVE |
-| Whiteboard | `zistrlooqiwiiokmoldp` | ap-northeast-1 | INACTIVE |
+| Whiteboard | `zistrlooqiwiiokmoldp` | ap-northeast-1 | ACTIVE_HEALTHY (restored from paused), Postgres 17.4.1.069 |
+| Blures | `ruvkilwvxypqwjignbnz` | ap-south-1 | INACTIVE, untouched |
 
-Neither project is named `realtime-whiteboard`. Both are paused. This
-schema was not applied to them. `Whiteboard` may be the existing app's
-database; do not treat it as the rebuild target without an explicit decision.
-Restoring a paused project was not attempted.
+- API URL: `https://zistrlooqiwiiokmoldp.supabase.co`
+- JWKS URL: `https://zistrlooqiwiiokmoldp.supabase.co/auth/v1/.well-known/jwks.json`
+- Publishable key: the legacy `anon` JWT from `get_publishable_keys`. It goes in
+  `frontend/.env` / build env as `VITE_APP_SUPABASE_ANON_KEY`, never committed.
 
-The free plan already holds two projects. Creating a third may be rejected
-even at $0.
+## State before migrations
 
-## Why apply stopped
+- `public`: no tables, no functions.
+- `auth`: stock Supabase tables, 0 users. No triggers on `auth.users`.
+- `list_migrations`: empty.
 
-Creating `realtime-whiteboard` is the step the plan uses to get a database.
-That step goes through `get_cost` / `confirm_cost` before `create_project`.
-This run was told not to spend money and not to confirm a cost, so
-`confirm_cost` and `create_project` were not called. `apply_migration` was
-not called because there is no active target project.
+No conflict with the repo schema, so nothing was dropped.
 
-## Remaining steps
+## Migrations applied
 
-Do these only after an explicit yes to the $0 quote (or to a newer quote if
-the org plan changes).
+| File | MCP name | Result |
+|---|---|---|
+| `0001_auth_stub.up.sql` | `auth_stub` | **Skipped.** Fails with `42501: permission denied for schema auth`: `postgres` has no CREATE on `auth`, and `CREATE TABLE IF NOT EXISTS` checks that privilege before the existence check. The file is a no-op on Supabase by design; its targets were verified present (`auth.users` with `id, email, raw_user_meta_data, created_at`, and `auth.uid()`). |
+| `0002_profiles.up.sql` | `profiles` | applied |
+| `0003_rooms.up.sql` | `rooms` | applied |
+| `0004_board.up.sql` | `board` | applied |
+| `0005_chat_calls_audit.up.sql` | `chat_calls_audit` | applied |
+| `0006_rls.up.sql` | `rls` | applied |
 
-1. Call `get_cost` (`type: project`, `organization_id: dutgbjvnnjhysdyveifq`)
-   and repeat the amount. Call `confirm_cost` only after agreement.
-   `create_project` name `realtime-whiteboard`, region chosen by the user,
-   `confirm_cost_id` only if the API asks for it. If the free-project limit
-   blocks creation, pause or delete an unused project first; do not reuse
-   `Blures` or `Whiteboard` unless that is the decision.
-2. Poll `get_project` until the project is healthy.
-3. `apply_migration` once per file, in order, SQL from the `.up.sql` only.
-   Names: `auth_stub`, `profiles`, `rooms`, `board`, `chat_calls_audit`, `rls`.
-   Do not run the `.down.sql` files against cloud. `0001` is a no-op for
-   roles, `auth.users`, and `auth.uid()` when those already exist. `0002`
-   replaces trigger `on_auth_user_created`.
-4. In the dashboard, Authentication → Providers → Email: enable email and
-   password. The MCP tool list used here has no auth-provider call.
-5. Record the project URL and the publishable (anon) key in `frontend/.env`.
-   Do not commit that file. Record the JWKS URL
-   `https://<ref>.supabase.co/auth/v1/.well-known/jwks.json` in
-   `docs/CONTRACTS.md`. Never write the service-role key into the repo or
-   into a runbook.
-6. `list_tables` for schema `public`: every table in `docs/SCHEMA.md` has
-   `rls_enabled: true`.
-7. `get_advisors` for `security` and `performance`. ERROR-level findings
-   stop the task. The restrictive write policies are intentional
-   (`WITH CHECK (false)` for every non-bypass role); do not drop them to
-   silence an advisor.
+The `.down.sql` files were not run. To make `0001` apply cleanly on cloud
+too, its `CREATE SCHEMA` / `CREATE TABLE` would need the same existence
+guard already used for `auth.uid()`. That repo change has not been made.
+
+`list_tables public` after: `profiles`, `rooms`, `room_members`,
+`room_invites`, `strokes`, `board_snapshots`, `chat_messages`,
+`call_sessions`, `audit_log`, all with `rls_enabled: true`.
+
+## Advisors
+
+No ERROR-level findings.
+
+Security (WARN):
+
+- `0027 pg_graphql_authenticated_table_exposed` for the 8 tables that grant
+  `SELECT` to `authenticated`. This is intentional: rows are still filtered by
+  the member-only RLS policies.
+- `0028` / `0029` SECURITY DEFINER functions executable by `anon` and
+  `authenticated`: `handle_new_user()` and `is_room_member(uuid)`. Supabase
+  default privileges grant EXECUTE to `anon` / `authenticated` directly, so
+  `0006`'s `REVOKE ... FROM PUBLIC` does not remove those grants. Impact is low:
+  a trigger function cannot be called through RPC, and `is_room_member`
+  returns false when there is no `auth.uid()`. Not changed here. A follow-up
+  migration could revoke EXECUTE from `anon` (and from `authenticated` on
+  `handle_new_user`).
+- Leaked password protection disabled; few MFA options; Postgres
+  17.4.1.069 has security patches available (upgrade from the dashboard).
+
+Performance (INFO only): 10 `unused_index` findings, expected on empty tables.
+
+The restrictive write policies (`WITH CHECK (false)` for every non-bypass
+role) were left as they are.
+
+## Remaining dashboard steps (manual)
+
+The MCP has no auth-config or signing-key calls.
+
+1. **Authentication → Sign In / Providers → Email:** enable Email with
+   password. Set the Site URL and Redirect URLs once the frontend origin is
+   known.
+2. **Project Settings → JWT Keys (JWT Signing Keys):** migrate to asymmetric
+   signing keys (ECC P-256 or RSA), then rotate so the new key signs tokens.
+   On 2026-11-07 the JWKS endpoint returned `{"keys":[]}`, so the gateway
+   cannot verify via `SUPABASE_JWKS_URL` until this is done. The fallback,
+   `SUPABASE_JWT_ALLOW_HS256`, is weaker.
+3. **`DATABASE_URL`:** use the top-bar **Connect** button → Connection
+   string → **Session pooler** (Supavisor, port 5432, user
+   `postgres.zistrlooqiwiiokmoldp`). The services open `pgxpool.New` with
+   pgx's default prepared-statement cache, which breaks behind the
+   **Transaction pooler** (port 6543) unless the URL adds
+   `default_query_exec_mode=simple_protocol`. The direct
+   `db.<ref>.supabase.co` host is IPv6-only on the free plan. Add
+   `sslmode=require`. Put the value only in the deploy platform's env vars.
+   The database password is under Project Settings → Database (reset it
+   there if it is unknown).
+4. Optional: enable leaked password protection and upgrade Postgres.
 
 Local proof of the same SQL is the scratch `postgres:16` up / down / up
-cycle described in `docs/SCHEMA.md`, not this cloud project.
+cycle described in `docs/SCHEMA.md`.
