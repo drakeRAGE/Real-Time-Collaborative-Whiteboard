@@ -1,2 +1,9 @@
 * text=auto eol=lf
 *.go text eol=lf
+
+gen/** linguist-generated=true
+frontend/src/realtime/gen/** linguist-generated=true
+*.pb.go linguist-generated=true
+package-lock.json linguist-generated=true
+go.sum linguist-generated=true
+

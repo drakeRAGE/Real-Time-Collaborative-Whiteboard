@@ -2,7 +2,7 @@ name: E2E
 
 on:
   push:
-    branches: [main]
+    branches: [dev, main]
   pull_request:
     types: [labeled]
 

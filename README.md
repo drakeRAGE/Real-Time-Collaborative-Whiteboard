@@ -1,34 +1,50 @@
 # Realtime Collaborative Whiteboard
 
-[![CI](https://github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard/actions/workflows/ci.yml/badge.svg)](https://github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard/actions/workflows/ci.yml)
+[![CI](https://github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard/actions/workflows/ci.yml)
 [![coverage gate](https://img.shields.io/badge/coverage%20gate-pkg%2080%25%20%2F%20services%2070%25-blue)](scripts/coverage-gate.ps1)
-[![Go Report Card](https://goreportcard.com/badge/github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard)](https://goreportcard.com/report/github.com/drakeRAGE/Real-Time-Collaborative-Whiteboard)
 
-A multiplayer whiteboard: five Go services, gRPC, NATS JetStream, protobuf WebSockets, Postgres, Redis, and a React 19 client. Draw in one browser and the other browser paints the same strokes, with live cursors and room chat.
+Five Go services, gRPC, NATS JetStream, protobuf WebSockets, Postgres, Redis, and a React 19 client. Draw in one browser; the other paints the same strokes, with live cursors and room chat.
 
-![Room admin drawing on the shared canvas](docs/assets/whiteboard.png)
+<p align="center">
+  <img src="docs/assets/whiteboard.png" alt="Room admin canvas with strokes, a rectangle, and a circle" />
+</p>
 
 ## Two browsers, one room
 
-Alex creates the room and draws. Sam joins the same room. The strokes, rectangle, and circle arrive on Sam's canvas, and Sam sees Alex's cursor. Undo, redo, clear, and delete are on the room admin's toolbar.
+Alex creates the room and draws. Sam joins. The strokes, rectangle, and circle land on Sam's canvas, and Sam sees Alex's cursor. Undo, redo, clear, and delete stay on the room admin's toolbar.
 
-![Sam's canvas, same strokes, Alex's cursor, no admin tools](docs/assets/whiteboard-member.png)
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <strong>Room admin</strong><br />
+      <img src="docs/assets/whiteboard.png" alt="Admin canvas with undo and clear" />
+    </td>
+    <td align="center" width="50%">
+      <strong>Member</strong><br />
+      <img src="docs/assets/whiteboard-member.png" alt="Member canvas with the same strokes and Alex's cursor" />
+    </td>
+  </tr>
+</table>
 
 Sam's chat message shows up on Alex's sidebar.
 
-![Chat open on the room admin's canvas](docs/assets/chat.png)
+<p align="center">
+  <img src="docs/assets/chat.png" alt="Chat panel with a message from Sam" />
+</p>
 
-Create or join a room from the signed-in home screen.
+Create or join a room after sign-in.
 
-![Create or join a room](docs/assets/rooms.png)
+<p align="center">
+  <img src="docs/assets/rooms.png" alt="Create or join a room" width="720" />
+</p>
 
 ## What you can do
 
-- Draw with the pen and eraser. Rectangles and circles sync to the room (`frontend/src/components/Whiteboard.tsx`).
-- See other people's cursors (`frontend/src/components/LiveCursors.tsx`).
-- Chat, and see who is in the room (`frontend/src/components/Communication.tsx`).
-- Place a WebRTC call. Signaling rides the same socket (`frontend/src/components/VideoCallSession.tsx`).
-- Undo, redo, and clear on the server. Only the room admin can do it (`docs/adr/006-server-side-undo.md`).
+- Draw with the pen and eraser. Rectangles and circles sync to the room.
+- See other people's cursors.
+- Chat, and see who is in the room.
+- Place a WebRTC call. Signaling uses the same socket.
+- Undo, redo, and clear on the server. Only the room admin can do it.
 
 ## Architecture
 
@@ -66,20 +82,13 @@ flowchart TB
 
 A stroke is a `ClientEnvelope` on `/ws` (`frontend/src/realtime/client.ts`). The gateway checks the JWT, membership, protovalidate, and the rate limit (`services/gateway/internal/authz/pipeline.go`), then publishes `wb.board.stroke.v1`. Board-service appends the op-log and publishes `wb.board.stroke_applied.v1`. `services/gateway/internal/fanout/fanout.go` delivers `ServerEnvelope` frames to the room.
 
-Go module prefix: `github.com/drakeRAGE/realtime-whiteboard` (`docs/OWNER.md`).
-
 ## Quickstart
 
-Docker Desktop and [Task](https://taskfile.dev). Node.js for the Vite app. `task up` does not start the frontend.
+Docker Desktop, [Task](https://taskfile.dev), and Node.js. `task up` does not start the frontend.
 
 ```powershell
 docker compose -f deploy/compose/docker-compose.yml down -v
 task up
-```
-
-`task up` is `docker compose -f deploy/compose/docker-compose.yml up -d --build`. Readiness is [http://localhost:8080/readyz](http://localhost:8080/readyz). `task logs` follows logs. `task down` stops the stack and keeps volumes. `task down -- -v` drops them.
-
-```powershell
 cd frontend
 npm ci
 copy .env.example .env
@@ -87,28 +96,31 @@ cd ..
 task dev-frontend
 ```
 
-`task dev-frontend` runs Vite on port 5173. Set `VITE_APP_SUPABASE_URL`, `VITE_APP_SUPABASE_ANON_KEY`, and `VITE_BACKEND_URL` (`http://localhost:8080`). Compose verifies local HS256 tokens. A cloud Supabase project uses `SUPABASE_JWKS_URL` with that HS256 flag left false (`services/gateway/internal/config/config.go`). The browser tests sign in against compose without a cloud project (`e2e/README.md`).
+Readiness is [http://localhost:8080/readyz](http://localhost:8080/readyz). The UI is [http://localhost:5173](http://localhost:5173). Set `VITE_APP_SUPABASE_URL`, `VITE_APP_SUPABASE_ANON_KEY`, and `VITE_BACKEND_URL` (`http://localhost:8080`). Compose verifies local HS256 tokens. Browser tests sign in against compose without a cloud project (`e2e/README.md`).
 
 | What | URL |
 | --- | --- |
-| Gateway readiness | http://localhost:8080/readyz |
+| Gateway | http://localhost:8080/readyz |
 | Frontend | http://localhost:5173 |
 | Jaeger | http://localhost:16686 |
 | Grafana | http://localhost:3000 (admin / admin) |
-| Grafana dashboard | http://localhost:3000/d/whiteboard-dev/whiteboard-local |
 | Prometheus | http://localhost:9090 |
 
-Ports, health checks, and the local database are in [docs/runbooks/local-dev.md](docs/runbooks/local-dev.md).
+Full ports and health checks: [docs/runbooks/local-dev.md](docs/runbooks/local-dev.md).
 
 ## Observability
 
-A board history read crosses three services. This trace is gateway to board to room, 11.67 ms, four spans.
+A board history read crosses three services. This trace is gateway → board → room, 11.67 ms, four spans.
 
-![Jaeger trace for BoardService GetHistory](docs/assets/jaeger-trace.png)
+<p align="center">
+  <img src="docs/assets/jaeger-trace.png" alt="Jaeger trace for BoardService GetHistory" />
+</p>
 
-Grafana is provisioned against Prometheus. The board shows that Prometheus is up. The Go processes do not export a `/metrics` handler, so WebSocket connections, NATS lag, and request latency are not on this dashboard.
+Grafana graphs Prometheus `up`. The Go processes do not export `/metrics`, so WebSocket connections, NATS lag, and request latency are not on this board.
 
-![Grafana whiteboard-local dashboard](docs/assets/grafana.png)
+<p align="center">
+  <img src="docs/assets/grafana.png" alt="Grafana whiteboard-local dashboard" />
+</p>
 
 ## Design notes
 
@@ -119,11 +131,11 @@ Grafana is provisioned against Prometheus. The board shows that Prometheus is up
 - [Supabase JWTs verified with JWKS](docs/adr/005-supabase-jwks.md)
 - [Server-side undo and redo](docs/adr/006-server-side-undo.md)
 
-Authorization: [docs/SECURITY.md](docs/SECURITY.md). Threat model: [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md). Subjects: [docs/CONTRACTS.md](docs/CONTRACTS.md). Schema: [docs/SCHEMA.md](docs/SCHEMA.md). Kubernetes: [docs/runbooks/k8s.md](docs/runbooks/k8s.md).
+[Security](docs/SECURITY.md) · [Threat model](docs/THREAT_MODEL.md) · [Contracts](docs/CONTRACTS.md) · [Schema](docs/SCHEMA.md) · [Kubernetes](docs/runbooks/k8s.md)
 
 ## Measured locally
 
-Figures are the committed Compose run in [load/REPORT.md](load/REPORT.md). k6 2.3.0, 20 virtual users, 2 rooms. The `fanout_latency` threshold is `p(99)<150`. This run missed it. The 500 VU profile was not started.
+Committed Compose run in [load/REPORT.md](load/REPORT.md). k6 2.3.0, 20 virtual users, 2 rooms. The `fanout_latency` threshold is `p(99)<150`. This run missed it.
 
 | Metric | Smoke, 20 VUs |
 | --- | --- |
@@ -139,11 +151,11 @@ task test
 task coverage
 ```
 
-`task coverage` fails under 80% statement coverage in `pkg/` or 70% in a service module (`scripts/coverage-gate.ps1`). The coverage badge is that gate. It is not a hosted coverage percentage.
+`task coverage` fails under 80% statement coverage in `pkg/` or 70% in a service module (`scripts/coverage-gate.ps1`). The coverage badge is that gate, not a hosted percentage.
 
 ## Current limits
 
-- The recorded 20 VU smoke is above the 150 ms fan-out target. [load/REPORT.md](load/REPORT.md) has the full table. The 100 VU run was not repeated after applied events got their own NATS message id.
-- Grafana on this Compose stack graphs Prometheus `up`. Application series are not emitted.
+- Fan-out p99 at 20 VUs is above 150 ms. The 100 VU run was not repeated after applied events got their own NATS message id.
+- Grafana on Compose graphs Prometheus `up`. Application series are not emitted.
 - Cloud migrations are recorded as not applied in [docs/runbooks/supabase-cloud.md](docs/runbooks/supabase-cloud.md).
-- Helm charts are under `deploy/k8s/charts/`. `task kind-up` is documented in [docs/runbooks/k8s.md](docs/runbooks/k8s.md).
+- Helm charts are under `deploy/k8s/charts/`. `task kind-up` is in [docs/runbooks/k8s.md](docs/runbooks/k8s.md).
