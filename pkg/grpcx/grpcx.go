@@ -3,8 +3,10 @@ package grpcx
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"buf.build/go/protovalidate"
@@ -15,6 +17,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -44,10 +47,11 @@ func NewServer(log zerolog.Logger, opts ...grpc.ServerOption) *grpc.Server {
 }
 
 // Dial returns a client that propagates traces and retries UNAVAILABLE
-// three times with 100ms between attempts.
+// three times with 100ms between attempts. Targets on port 443 use TLS;
+// all others are plaintext.
 func Dial(target string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	base := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(transportCredentials(target)),
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithChainUnaryInterceptor(retryUnavailable),
 	}
@@ -56,6 +60,13 @@ func Dial(target string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 		return nil, fmt.Errorf("grpcx: dial %s: %w", target, err)
 	}
 	return conn, nil
+}
+
+func transportCredentials(target string) credentials.TransportCredentials {
+	if strings.HasSuffix(target, ":443") {
+		return credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})
+	}
+	return insecure.NewCredentials()
 }
 
 func recoveryUnary(log zerolog.Logger) grpc.UnaryServerInterceptor {
