@@ -28,6 +28,7 @@ import (
 const (
 	maxConnsPerUser     = 3
 	sendCap             = 256
+	cursorCap           = 1
 	maxFrame            = 64 * 1024
 	DefaultAuthTimeout  = 5 * time.Second
 	DefaultPingInterval = 30 * time.Second
@@ -232,6 +233,7 @@ func (h *Hub) serve(user principal.User, ws *websocket.Conn) {
 		ctx:    ctx,
 		cancel: cancel,
 		send:   make(chan []byte, sendCap),
+		cursor: make(chan []byte, cursorCap),
 		rooms:  map[string]struct{}{},
 	}
 	c.socks = &adapter{h: h, c: c}
@@ -262,7 +264,14 @@ func (h *Hub) Broadcast(roomID string, env *realtimev1.ServerEnvelope, excludeUs
 		conns = append(conns, c)
 	}
 	h.mu.Unlock()
+	// Cursors are replaced, not queued. A 20/s cursor stream otherwise sits
+	// in front of stroke frames on the single send channel (smoke p99).
+	cursor := env.GetCursorMoved() != nil
 	for _, c := range conns {
+		if cursor {
+			c.enqueueCursor(body)
+			continue
+		}
 		c.enqueue(body)
 	}
 }
@@ -443,6 +452,7 @@ type conn struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	send   chan []byte
+	cursor chan []byte
 	rooms  map[string]struct{}
 	socks  *adapter
 	once   sync.Once
@@ -458,6 +468,25 @@ func (c *conn) enqueue(body []byte) {
 	default:
 		c.hub.log.Warn().Str("user_id", c.user.ID).Msg("slow consumer")
 		c.slow.Store(true)
+	}
+}
+
+func (c *conn) enqueueCursor(body []byte) {
+	select {
+	case <-c.ctx.Done():
+		return
+	case c.cursor <- body:
+		return
+	default:
+	}
+	select {
+	case <-c.cursor:
+	default:
+	}
+	select {
+	case <-c.ctx.Done():
+	case c.cursor <- body:
+	default:
 	}
 }
 
@@ -504,20 +533,42 @@ func (c *conn) readPump() {
 
 func (c *conn) writePump() {
 	for {
+		// Stroke, ack, and room frames on send are written before a cursor.
 		select {
 		case <-c.ctx.Done():
 			return
 		case body := <-c.send:
-			if err := c.ws.Write(context.Background(), websocket.MessageBinary, body); err != nil {
-				c.close(websocket.StatusGoingAway, "write")
+			if !c.writeBody(body) {
 				return
 			}
-			if c.slow.Load() {
-				c.close(websocket.StatusTryAgainLater, "slow consumer")
+			continue
+		default:
+		}
+		select {
+		case <-c.ctx.Done():
+			return
+		case body := <-c.send:
+			if !c.writeBody(body) {
+				return
+			}
+		case body := <-c.cursor:
+			if !c.writeBody(body) {
 				return
 			}
 		}
 	}
+}
+
+func (c *conn) writeBody(body []byte) bool {
+	if err := c.ws.Write(context.Background(), websocket.MessageBinary, body); err != nil {
+		c.close(websocket.StatusGoingAway, "write")
+		return false
+	}
+	if c.slow.Load() {
+		c.close(websocket.StatusTryAgainLater, "slow consumer")
+		return false
+	}
+	return true
 }
 
 func (c *conn) pingLoop() {

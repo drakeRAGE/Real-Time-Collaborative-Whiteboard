@@ -149,14 +149,13 @@ Stroke and shape bodies are also capped at 500 points
 
 ## Pod securityContext
 
-Phase 13 Helm charts are not in this change. The charts should set:
-
-```yaml
-securityContext:
-  runAsNonRoot: true
-  readOnlyRootFilesystem: true
-  allowPrivilegeEscalation: false
-```
+Helm charts under `deploy/k8s/charts/` set pod- and container-level
+`securityContext` on every app workload. The gateway template is
+`deploy/k8s/charts/gateway/templates/app.yaml`; room, board, chat, and
+presence share the same container block in each chart's
+`templates/_helpers.tpl` (`runAsNonRoot`, `readOnlyRootFilesystem`,
+`allowPrivilegeEscalation: false`). Pod spec also sets `runAsUser` /
+`runAsGroup` `65532` to match distroless nonroot.
 
 The service images already drop to `nonroot`
 (`services/gateway/Dockerfile`, `services/room/Dockerfile`,
@@ -180,7 +179,8 @@ accept traffic from the gateway and from NATS (same namespace, or namespace
 `nats`). room also accepts board, because board dials room for membership.
 NATS port 4222 accepts the five app workloads. NATS monitoring port 8222
 has no allow rule. Egress is not restricted, so JWKS, Postgres, and Redis
-stay reachable. A kind test that a debug pod cannot reach room-service is
-Phase 13; these files are not that proof.
+stay reachable. Regression: `task kind-up`, then
+`powershell -NoProfile -File deploy/k8s/smoke.ps1` — expect
+`netpol blocked room` when a debug pod curls room-service directly.
 
 Threats and residual risk: `docs/THREAT_MODEL.md`.

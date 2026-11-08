@@ -140,8 +140,9 @@ port can subscribe and publish. Board and chat trust `Wb-User-Id` on the
 message. Chat ingest does not re-check room membership
 (`services/chat/internal/service/chat.go`). NetworkPolicy does not apply
 to the compose network, and a compromised pod that is already on the
-allow-list can still forge headers. The kind test that a non-allow-listed
-pod is blocked is Phase 13.
+allow-list can still forge headers. On kind, `deploy/k8s/smoke.ps1`
+(after `task kind-up`) asserts a non-gateway pod cannot curl
+room-service (`netpol blocked room`).
 
 ## JWKS outage
 

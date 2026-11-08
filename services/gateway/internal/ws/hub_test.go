@@ -187,6 +187,23 @@ func waitCount(t *testing.T, n *atomic.Int32, min int32) {
 	t.Fatalf("fast reader count %d want >= %d", n.Load(), min)
 }
 
+func TestEnqueueCursorKeepsNewest(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	c := &conn{ctx: ctx, cursor: make(chan []byte, cursorCap)}
+	c.enqueueCursor([]byte("old"))
+	c.enqueueCursor([]byte("new"))
+	got := <-c.cursor
+	if string(got) != "new" {
+		t.Fatalf("cursor %q", got)
+	}
+	select {
+	case extra := <-c.cursor:
+		t.Fatalf("queued extra cursor %q", extra)
+	default:
+	}
+}
+
 func TestShutdownClose(t *testing.T) {
 	h, srv := newServer(t, staticAuth{token: "good", id: userA}, bindPipe{room: roomX})
 	conn := dial(t, srv, []string{"bearer", "good"})

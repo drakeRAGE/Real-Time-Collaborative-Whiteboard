@@ -3,3 +3,10 @@ gateway:
   ingress:
     enabled: true
     className: nginx
+
+# BOARD + CHAT streams each cap at 1Gi (pkg/natsx); raise the server file store.
+nats:
+  config:
+    jetstream:
+      fileStore:
+        maxSize: 3Gi

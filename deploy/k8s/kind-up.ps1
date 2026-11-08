@@ -43,12 +43,18 @@ $kind = Start-Process -FilePath "kind" -ArgumentList @("create", "cluster", "--c
 
 $api = $false
 for ($i = 0; $i -lt 90; $i++) {
-  if ($kind.HasExited -and $kind.ExitCode -ne 0) {
-    Get-Content $log, $err -ErrorAction SilentlyContinue
-    throw "kind create cluster failed ($($kind.ExitCode))"
+  if ($kind.HasExited) {
+    if ($null -ne $kind.ExitCode -and $kind.ExitCode -ne 0) {
+      Get-Content $log, $err -ErrorAction SilentlyContinue
+      throw "kind create cluster failed ($($kind.ExitCode))"
+    }
   }
-  kubectl --context kind-whiteboard get --raw=/readyz *> $null
-  if ($LASTEXITCODE -eq 0) {
+  $prevEap = $ErrorActionPreference
+  $ErrorActionPreference = "SilentlyContinue"
+  kubectl --context kind-whiteboard get --raw=/readyz 2>$null | Out-Null
+  $readyExit = $LASTEXITCODE
+  $ErrorActionPreference = $prevEap
+  if ($readyExit -eq 0) {
     $api = $true
     break
   }
@@ -60,7 +66,7 @@ if (-not $api) {
 }
 
 Invoke-Native "kubectl" @("--context", "kind-whiteboard", "apply", "-f", "https://raw.githubusercontent.com/projectcalico/calico/v3.30.3/manifests/calico.yaml")
-Invoke-Native "kubectl" @("--context", "kind-whiteboard", "-n", "kube-system", "rollout", "status", "ds/calico-node", "--timeout=180s")
+Invoke-Native "kubectl" @("--context", "kind-whiteboard", "-n", "kube-system", "rollout", "status", "ds/calico-node", "--timeout=600s")
 Invoke-Native "kubectl" @("--context", "kind-whiteboard", "wait", "--for=condition=Ready", "node", "--all", "--timeout=180s")
 
 if (-not $kind.HasExited) {
@@ -68,13 +74,22 @@ if (-not $kind.HasExited) {
     throw "kind create cluster did not exit"
   }
 }
-if ($kind.ExitCode -ne 0) {
+if ($null -ne $kind.ExitCode -and $kind.ExitCode -ne 0) {
   Get-Content $log, $err -ErrorAction SilentlyContinue
   throw "kind create cluster failed ($($kind.ExitCode))"
 }
 
 Invoke-Native "kubectl" @("apply", "-f", "https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.13.2/deploy/static/provider/kind/deploy.yaml")
-Invoke-Native "kubectl" @("-n", "ingress-nginx", "rollout", "status", "deploy/ingress-nginx-controller", "--timeout=180s")
+# kind.yaml labels only the control-plane ingress-ready; hostPort 80 must land there
+# for extraPortMappings 8088/8443 (docs/runbooks/k8s.md).
+Invoke-Native "kubectl" @(
+  "-n", "ingress-nginx", "patch", "deployment", "ingress-nginx-controller",
+  "--type", "json", "--patch-file", "deploy/k8s/ingress-control-plane-patch.json"
+)
+Invoke-Native "kind" @(
+  "load", "docker-image", "registry.k8s.io/ingress-nginx/controller:v1.13.2", "--name", "whiteboard"
+)
+Invoke-Native "kubectl" @("-n", "ingress-nginx", "rollout", "status", "deploy/ingress-nginx-controller", "--timeout=300s")
 
 foreach ($image in $images) {
   Invoke-Native "kind" @("load", "docker-image", $image, "--name", "whiteboard")
