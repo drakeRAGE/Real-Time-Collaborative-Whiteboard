@@ -135,15 +135,15 @@ Grafana graphs Prometheus `up`. The Go processes do not export `/metrics`, so We
 
 ## Measured locally
 
-Committed Compose run in [load/REPORT.md](load/REPORT.md). k6 2.3.0, 20 virtual users, 2 rooms. The `fanout_latency` threshold is `p(99)<150`. This run missed it.
+Committed Compose run in [load/REPORT.md](load/REPORT.md). k6 2.3.0, 20 virtual users, 2 rooms. The `fanout_latency` threshold is `p(99)<150`. Smoke still misses it after hub/fanout cursor-queue tuning.
 
-| Metric | Smoke, 20 VUs |
-| --- | --- |
-| Result | exit 99 |
-| errors | 0 |
-| fanout_latency median | 48 ms |
-| fanout_latency p99 | 471 ms |
-| ws upgrade | 51/51 status 101 |
+| Metric | Smoke, 20 VUs (pre-tune) | Smoke, 20 VUs (2026-11-08) |
+| --- | --- | --- |
+| Result | exit 99 | exit 99 |
+| errors | 0 | 0 / 13899 acks |
+| fanout_latency median | 48 ms | 37 ms |
+| fanout_latency p99 | 471 ms | 173 ms |
+| ws upgrade | 51/51 status 101 | 51/51 status 101 |
 
 ```powershell
 task lint
@@ -155,7 +155,7 @@ task coverage
 
 ## Current limits
 
-- Fan-out p99 at 20 VUs is above 150 ms. The 100 VU run was not repeated after applied events got their own NATS message id.
+- Fan-out p99 at 20 VUs is 173 ms (23 ms over 150 ms). The 100 VU run was not repeated after applied events got their own NATS message id.
 - Grafana on Compose graphs Prometheus `up`. Application series are not emitted.
 - Cloud migrations are recorded as not applied in [docs/runbooks/supabase-cloud.md](docs/runbooks/supabase-cloud.md).
 - Helm charts are under `deploy/k8s/charts/`. `task kind-up` is in [docs/runbooks/k8s.md](docs/runbooks/k8s.md).
