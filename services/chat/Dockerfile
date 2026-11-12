@@ -7,7 +7,7 @@ COPY . .
 WORKDIR /src/services/chat
 RUN --mount=type=cache,target=/go/pkg/mod go build -ldflags "-s -w" -o /out/chat ./cmd
 
-FROM busybox:1.36.1-musl AS busybox
+FROM busybox:1.38.0-musl AS busybox
 
 FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
 COPY --from=build /out/chat /chat
